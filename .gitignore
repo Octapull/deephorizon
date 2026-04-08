@@ -1,0 +1,32 @@
+# Data (DVC ile versiyonlanacak)
+data/
+*.npy
+*.uvfits
+*.fits
+*.hdf5
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML artifacts
+*.onnx
+*.pt
+*.pth
+*.ckpt
+mlruns/
+wandb/

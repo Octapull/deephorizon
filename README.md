@@ -26,8 +26,10 @@
 <img src="https://img.shields.io/badge/pytorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
 <img src="https://img.shields.io/badge/react-18+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white"/>
 <img src="https://img.shields.io/badge/mlflow-tracking-0194E2?style=flat-square&logo=mlflow&logoColor=white"/>
+<img src="https://img.shields.io/badge/sealed--secrets-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square"/>
 
 <br>
@@ -405,95 +407,38 @@ Kullanıcıya dokunan tüm katmanların sahibi. Go API gateway, React frontend, 
 
 <br>
 
+## 🖼️ Örnek Çıktı
+
+<div align="center">
+
+<img src="assets/sample_degradation.png" alt="Degradation: Heavy — Bozuk vs Temiz" width="800"/>
+
+<sub><b>Sol:</b> Bozuk girdi (PSF blur + gürültü + downsample) · <b>Sağ:</b> Temiz hedef (Ground Truth)</sub>
+
+</div>
+
+<br>
+
+---
+
+<br>
+
 ## 📁 Repo Yapısı
 
 ```
 deephorizon/
 │
 ├── 📄 README.md
-├── 🐳 docker-compose.yml
-├── ⚙️ Makefile
-├── 🔁 .github/workflows/
-│   ├── ci.yml
-│   ├── train.yml
-│   └── deploy.yml
+├── 📄 .gitignore
 │
-├── 🗄️ data-pipeline/                    ← Stajyer 1
-│   ├── dags/                             # Airflow DAG'ları
-│   ├── src/
-│   │   ├── fits_parser.py
-│   │   ├── synthetic_generator.py
-│   │   ├── psf_model.py
-│   │   ├── augmentation.py
-│   │   └── validation/                   # Great Expectations
-│   ├── dvc.yaml
-│   └── requirements.txt
+├── 🖼️ assets/
+│   └── sample_degradation.png
 │
-├── 🧠 ml/                               ← Stajyer 2 + 3
-│   ├── src/
-│   │   ├── models/
-│   │   │   ├── unet.py
-│   │   │   ├── pix2pix.py
-│   │   │   ├── esrgan.py
-│   │   │   └── restormer.py
-│   │   ├── training/
-│   │   │   ├── train.py
-│   │   │   ├── config.py
-│   │   │   └── losses.py
-│   │   ├── evaluation/
-│   │   │   ├── metrics.py
-│   │   │   ├── physics_check.py
-│   │   │   └── benchmark.py
-│   │   └── serving/
-│   │       ├── inference_server.py       # gRPC server
-│   │       └── proto/
-│   │           └── inference.proto
-│   ├── notebooks/
-│   ├── configs/                          # Hydra/YAML configs
-│   └── requirements.txt
-│
-├── 🔷 api/                              ← Stajyer 5 (Go)
-│   ├── cmd/server/main.go
-│   ├── internal/
-│   │   ├── handler/                      # HTTP handlers
-│   │   ├── middleware/                    # Auth, CORS, logging
-│   │   ├── grpc/                         # gRPC client
-│   │   └── model/                        # Request/response structs
-│   ├── proto/inference.proto
-│   ├── go.mod
-│   └── go.sum
-│
-├── ⚛️ frontend/                         ← Stajyer 5
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── hooks/
-│   │   ├── services/                     # API client
-│   │   └── App.tsx
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── 🔧 infra/                            ← Stajyer 4
-│   ├── docker/
-│   │   ├── Dockerfile.data-pipeline
-│   │   ├── Dockerfile.ml-train
-│   │   ├── Dockerfile.ml-serve
-│   │   ├── Dockerfile.api
-│   │   └── Dockerfile.frontend
-│   ├── prometheus/prometheus.yml
-│   ├── grafana/dashboards/
-│   └── airflow/airflow.cfg
-│
-├── 📖 docs/
-│   ├── data_card.md
-│   ├── model_card.md
-│   ├── api_guide.md
-│   └── runbook.md
-│
-└── 🧪 tests/
-    ├── data-pipeline/
-    ├── ml/
-    └── api/
+└── 🔧 scripts/
+    ├── download_eht_data.py          # EHT UVFITS veri indirici (7 dataset, 88 dosya)
+    ├── generate_synthetic_data.py     # eht-imaging ile sentetik veri üretici (128x128)
+    ├── generate_training_data.py      # 512x512 eğitim verisi üretici (10K çift)
+    └── visualize_samples.py           # Veri görselleştirme (PNG çıktı)
 ```
 
 <br>
@@ -508,11 +453,7 @@ deephorizon/
 
 | Araç | Versiyon |
 |:---|:---|
-| Docker & Docker Compose | Latest |
-| NVIDIA Driver + CUDA Toolkit | GPU eğitim için |
 | Python | `3.11+` |
-| Go | `1.22+` |
-| Node.js | `20+` |
 | Git | Latest |
 
 ### ⚡ Hızlı Başlangıç
@@ -522,44 +463,277 @@ deephorizon/
 git clone https://github.com/Octapull/deephorizon.git
 cd deephorizon
 
-# Tüm servisleri ayağa kaldır
-docker compose up -d
+# Virtual environment kur
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# Bağımlılıkları yükle
+pip install ehtim astropy numpy scipy matplotlib requests
 ```
 
 <br>
 
-<table>
-<tr>
-<th>Servis</th>
-<th>URL</th>
-<th>Port</th>
-</tr>
-<tr><td>⚛️ Frontend</td><td><code>http://localhost:3000</code></td><td><code>3000</code></td></tr>
-<tr><td>🔷 Go API</td><td><code>http://localhost:8080</code></td><td><code>8080</code></td></tr>
-<tr><td>📊 MLflow</td><td><code>http://localhost:5000</code></td><td><code>5000</code></td></tr>
-<tr><td>🎼 Airflow</td><td><code>http://localhost:8081</code></td><td><code>8081</code></td></tr>
-<tr><td>📈 Grafana</td><td><code>http://localhost:3001</code></td><td><code>3001</code></td></tr>
-<tr><td>💾 MinIO</td><td><code>http://localhost:9001</code></td><td><code>9001</code></td></tr>
-<tr><td>📉 Prometheus</td><td><code>http://localhost:9090</code></td><td><code>9090</code></td></tr>
-</table>
+---
 
 <br>
 
-### 🔨 Servis Bazlı Geliştirme
+## 🔧 Scriptler
+
+### 📡 `download_eht_data.py` — EHT Gerçek Veri İndirici
+
+EHT kolaborasyonunun yayınladığı tüm kalibre edilmiş UVFITS gözlem verilerini GitHub'dan indirir.
+
+| Dataset | Kaynak | Dosya Sayısı |
+|:---|:---|:---:|
+| `m87_2017` | M87* — ilk kara delik görüntüsü | 8 |
+| `3c279_2017` | 3C279 quasar | 8 |
+| `sgra_2017` | Sgr A* — Samanyolu merkezi | 20 |
+| `m87_2018` | M87* — ikinci yıl gözlemi | 24 |
+| `cena_2017` | Centaurus A | 4 |
+| `m87_2017_pol` | M87* polarize veri | 16 |
+| `sgra_2017_pol` | Sgr A* polarize veri | 8 |
 
 ```bash
-# 🗄️ Data Pipeline
-cd data-pipeline && pip install -r requirements.txt
+# Tüm datasetleri indir (88 UVFITS dosyası)
+python scripts/download_eht_data.py
 
-# 🧠 ML
-cd ml && pip install -r requirements.txt
+# Sadece belirli datasetleri indir
+python scripts/download_eht_data.py --datasets m87_2017 sgra_2017
 
-# 🔷 API (Go)
-cd api && go mod download && go run cmd/server/main.go
-
-# ⚛️ Frontend
-cd frontend && npm install && npm run dev
+# Çıktı dizini: data/raw/eht/
 ```
+
+<br>
+
+### 🧪 `generate_synthetic_data.py` — Sentetik Veri Üretici (eht-imaging)
+
+`eht-imaging` kütüphanesi ile fiziksel olarak gerçekçi kara delik modelleri üretir. 128x128 çözünürlükte hızlı prototipleme için uygundur.
+
+- **Crescent (hilal)** modeli — M87* benzeri asimetrik parlaklık
+- **Ring (halka)** modeli — simetrik halka yapısı
+- 4 degradation seviyesi: `light`, `medium`, `heavy`, `extreme`
+
+```bash
+python scripts/generate_synthetic_data.py
+
+# Çıktı dizini: data/raw/simulated/
+#   clean/     → temiz görüntüler (.npy)
+#   degraded/  → bozuk görüntüler (.npy)
+#   pairs/     → görsel karşılaştırmalar (.png)
+```
+
+<br>
+
+### 🏋️ `generate_training_data.py` — Eğitim Verisi Üretici (512x512)
+
+Model eğitimi için **10,000 clean/degraded çift** üretir. 512x512 çözünürlükte, 3 farklı model tipi:
+
+| Model | Oran | Açıklama |
+|:---|:---:|:---|
+| Crescent (hilal) | %60 | Asimetrik parlaklıklı halka (M87* benzeri) |
+| Ring (halka) | %25 | Simetrik halka |
+| Double Ring | %15 | İç + dış halka (jet yapısı simülasyonu) |
+
+Degradation seviyeleri (`×2500` çift her biri):
+
+| Seviye | PSF Blur | Gürültü | Downsample |
+|:---|:---:|:---:|:---:|
+| `light` | 3.0 | %2 | 1x |
+| `medium` | 5.0 | %5 | 2x |
+| `heavy` | 8.0 | %10 | 2x |
+| `extreme` | 12.0 | %15 | 4x |
+
+```bash
+python scripts/generate_training_data.py
+
+# Çıktı dizini: data/training/
+#   clean/     → 10,000 temiz görüntü (.npy, float32)
+#   degraded/  → 10,000 bozuk görüntü (.npy, float32)
+# Tahmini boyut: ~2.5 GB
+```
+
+<br>
+
+### 🎨 `visualize_samples.py` — Veri Görselleştirme
+
+EHT gerçek verisinden dirty image üretir ve sentetik veri çiftlerini yüksek kaliteli PNG olarak kaydeder.
+
+```bash
+python scripts/visualize_samples.py
+
+# Çıktı dizini: data/visualizations/
+#   eht/        → dirty image PNG'leri
+#   synthetic/  → karşılaştırma ve grid görselleri
+```
+
+<br>
+
+---
+
+<br>
+
+## ☸️ Kubernetes Deployment
+
+Tüm servisler Kubernetes üzerinde deploy edilir. GPU workload'ları için NVIDIA device plugin kullanılır.
+
+### Cluster Yapısı
+
+```mermaid
+graph TB
+    subgraph K8s Cluster
+        direction TB
+
+        subgraph ns-data ["namespace: deephorizon-data"]
+            airflow["Airflow\n(CronJob/Deployment)"]
+            minio["MinIO\n(StatefulSet)"]
+        end
+
+        subgraph ns-ml ["namespace: deephorizon-ml"]
+            train["Training Job\n(Job + GPU)"]
+            mlflow["MLflow Server\n(Deployment)"]
+            inference["Inference Server\n(Deployment + GPU)"]
+        end
+
+        subgraph ns-app ["namespace: deephorizon-app"]
+            api["Go API Gateway\n(Deployment)"]
+            frontend["React Frontend\n(Deployment)"]
+            ingress["Ingress Controller\n(NGINX)"]
+        end
+
+        subgraph ns-monitor ["namespace: deephorizon-monitor"]
+            prom["Prometheus\n(StatefulSet)"]
+            grafana["Grafana\n(Deployment)"]
+        end
+    end
+
+    ingress --> frontend
+    ingress --> api
+    api -->|gRPC| inference
+    inference --> mlflow
+    train --> mlflow
+    train --> minio
+    airflow --> minio
+    prom --> api
+    prom --> inference
+
+    style ns-data fill:#1a1a2e,stroke:#FF6B35,color:#fff
+    style ns-ml fill:#1a1a2e,stroke:#EE4C2C,color:#fff
+    style ns-app fill:#1a1a2e,stroke:#00ADD8,color:#fff
+    style ns-monitor fill:#1a1a2e,stroke:#E6DB74,color:#fff
+```
+
+### Namespace'ler
+
+| Namespace | Servisler | Açıklama |
+|:---|:---|:---|
+| `deephorizon-data` | Airflow, MinIO | Veri pipeline ve object storage |
+| `deephorizon-ml` | Training Jobs, MLflow, Inference | Model eğitimi, registry, serving |
+| `deephorizon-app` | Go API, React Frontend, Ingress | Kullanıcıya açık servisler |
+| `deephorizon-monitor` | Prometheus, Grafana | Metrik toplama ve görselleştirme |
+
+### GPU Workload Konfigürasyonu
+
+```yaml
+# Training Job — NVIDIA L40S (48 GB)
+resources:
+  requests:
+    nvidia.com/gpu: 1
+    memory: "32Gi"
+    cpu: "8"
+  limits:
+    nvidia.com/gpu: 1
+    memory: "48Gi"
+    cpu: "16"
+
+# Inference Server — daha düşük kaynak
+resources:
+  requests:
+    nvidia.com/gpu: 1
+    memory: "8Gi"
+    cpu: "4"
+  limits:
+    nvidia.com/gpu: 1
+    memory: "16Gi"
+    cpu: "8"
+```
+
+### Deployment Komutları
+
+```bash
+# Namespace'leri oluştur
+kubectl apply -f infra/k8s/namespaces.yaml
+
+# Tüm servisleri deploy et
+kubectl apply -k infra/k8s/
+
+# GPU node'larını kontrol et
+kubectl get nodes -l nvidia.com/gpu.present=true
+
+# Training job başlat
+kubectl apply -f infra/k8s/ml/training-job.yaml
+
+# Pod durumlarını izle
+kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
+```
+
+<br>
+
+---
+
+<br>
+
+## 🔐 Secret Management
+
+Tüm hassas bilgiler (API key, credentials, connection string) **Kubernetes Secrets** ve **Sealed Secrets** ile yönetilir. Kaynak kodda veya environment dosyalarında **hiçbir secret bulunmaz**.
+
+### Secret Akışı
+
+```
+Developer → kubeseal encrypt → SealedSecret (Git'e commit edilir)
+                                     ↓
+                             Sealed Secrets Controller
+                                     ↓
+                             Kubernetes Secret (cluster içi)
+                                     ↓
+                             Pod env vars / volume mounts
+```
+
+### Secret Türleri
+
+| Secret | Namespace | Kullanım |
+|:---|:---|:---|
+| `minio-credentials` | `deephorizon-data` | MinIO access/secret key |
+| `mlflow-db-credentials` | `deephorizon-ml` | MLflow PostgreSQL bağlantısı |
+| `mlflow-s3-credentials` | `deephorizon-ml` | MLflow artifact store (MinIO) |
+| `inference-api-key` | `deephorizon-ml` | gRPC inference auth token |
+| `grafana-admin` | `deephorizon-monitor` | Grafana admin şifresi |
+| `github-registry` | `deephorizon-app` | Container image pull secret |
+
+### Sealed Secrets Kullanımı
+
+```bash
+# Sealed Secrets controller kur
+helm install sealed-secrets sealed-secrets/sealed-secrets \
+  -n kube-system
+
+# Secret oluştur ve encrypt et
+kubectl create secret generic minio-credentials \
+  --from-literal=access-key=CHANGEME \
+  --from-literal=secret-key=CHANGEME \
+  --dry-run=client -o yaml | \
+  kubeseal --format yaml > infra/k8s/secrets/minio-sealed.yaml
+
+# Git'e commit et (şifreli hali güvenle commit edilebilir)
+git add infra/k8s/secrets/minio-sealed.yaml
+```
+
+### Kurallar
+
+- `.env` dosyaları `.gitignore`'da ve **asla commit edilmez**
+- Secret rotation 90 günde bir yapılır
+- Production secret'lara sadece cluster admin erişir
+- Tüm secret erişimleri audit log'lanır
+- Development ortamında `kubectl create secret` ile lokal secret'lar kullanılır
 
 <br>
 
@@ -627,6 +801,7 @@ ci(infra): add Docker build caching to GitHub Actions
 
 <img src="https://img.shields.io/badge/Made_with-PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/Powered_by-Go-00ADD8?style=flat-square&logo=go&logoColor=white"/>
+<img src="https://img.shields.io/badge/Kubernetes-Deployed-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=flat-square&logo=react&logoColor=black"/>
 
 </div>
