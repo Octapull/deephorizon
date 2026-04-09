@@ -22,11 +22,12 @@
 
 <br>
 
-<img src="https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white"/>
-<img src="https://img.shields.io/badge/pytorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
-<img src="https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/react-18+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
-<img src="https://img.shields.io/badge/kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/pytorch-2.6+-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
+<img src="https://img.shields.io/badge/go-1.24+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
+<img src="https://img.shields.io/badge/react-19+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/microk8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/argo--cd-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
 <img src="https://img.shields.io/badge/docker-2496ED?style=flat-square&logo=docker&logoColor=white"/>
 <img src="https://img.shields.io/badge/mlflow-0194E2?style=flat-square&logo=mlflow&logoColor=white"/>
 <img src="https://img.shields.io/badge/sealed--secrets-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
@@ -37,7 +38,7 @@
 
 <br>
 
-[Overview](#-overview) · [Architecture](#-architecture) · [ML Pipeline](#-ml-pipeline) · [Scripts](#-scripts) · [K8s Deployment](#-kubernetes-deployment) · [Roadmap](#-roadmap)
+[Overview](#-overview) · [Architecture](#-architecture) · [ML Pipeline](#-ml-pipeline) · [Success Criteria](#-success-criteria) · [Tech Stack](#-tech-stack) · [API Endpoints](#-api-endpoints) · [Scripts](#-scripts) · [CI/CD](#-cicd-pipeline) · [K8s Deployment](#-kubernetes-deployment) · [Secrets](#-secret-management) · [Roadmap](#-roadmap) · [References](#-references)
 
 </div>
 
@@ -317,8 +318,8 @@ Hyperparameter search: Optuna (50 trials per phase)
 
 | | Technology | Description |
 |:---|:---|:---|
-| 🐍 | **Python 3.11+** | Primary development language |
-| 🔥 | **PyTorch 2.x** | Model development and training |
+| 🐍 | **Python 3.13+** | Primary development language |
+| 🔥 | **PyTorch 2.6+** | Model development and training |
 | 📊 | **MLflow** | Experiment tracking, model registry, artifact store |
 | 🎯 | **Optuna** | Automated hyperparameter optimization |
 | 📡 | **gRPC + protobuf** | Model serving protocol |
@@ -327,7 +328,7 @@ Hyperparameter search: Optuna (50 trials per phase)
 
 | | Technology | Description |
 |:---|:---|:---|
-| 🖼️ | **React 18+ (TypeScript)** | SPA frontend application |
+| 🖼️ | **React 19+ (TypeScript)** | SPA frontend application |
 | 🎨 | **Tailwind CSS** | Utility-first CSS framework |
 | 🔄 | **Zustand / React Query** | State management and server cache |
 | 🌐 | **Three.js / D3.js** | Interactive black hole visualization |
@@ -336,7 +337,7 @@ Hyperparameter search: Optuna (50 trials per phase)
 
 | | Technology | Description |
 |:---|:---|:---|
-| 🏎️ | **Go 1.22+** | API gateway language |
+| 🏎️ | **Go 1.24+** | API gateway language |
 | 🛣️ | **Gin / Echo** | High-performance HTTP framework |
 | 📡 | **google.golang.org/grpc** | Connection to Python inference service |
 | ✅ | **go-playground/validator** | Request validation |
@@ -348,8 +349,9 @@ Hyperparameter search: Optuna (50 trials per phase)
 |:---|:---|:---|
 | 🎼 | **Apache Airflow** | DAG-based pipeline orchestration |
 | 🐳 | **Docker, Docker Compose** | Service isolation, environment consistency |
-| ☸️ | **Kubernetes** | Production orchestration, GPU scheduling |
-| 🔁 | **GitHub Actions** | Automated test, build, deploy |
+| ☸️ | **MicroK8s** | Lightweight Kubernetes for single-node / small cluster GPU deployment |
+| 🔁 | **GitHub Actions** | CI: lint, test, build, push images |
+| 🚀 | **Argo CD** | CD: GitOps-based continuous deployment to MicroK8s |
 | 📉 | **Prometheus + Grafana** | Metrics collection and visualization |
 | 🔍 | **Evidently AI** | Data drift and model performance monitoring |
 
@@ -585,7 +587,7 @@ deephorizon/
 
 | Tool | Version |
 |:---|:---|
-| Python | `3.11+` |
+| Python | `3.13+` |
 | Git | Latest |
 
 ### Quick Start
@@ -706,29 +708,49 @@ python scripts/visualize_samples.py
 
 ## 🔁 CI/CD Pipeline
 
+CI runs on **GitHub Actions**, CD runs on **Argo CD** (GitOps). Argo CD watches the `infra/k8s/` directory and auto-syncs changes to MicroK8s.
+
 ```mermaid
 flowchart LR
     A["Push / PR"] --> B["Lint & Format\n(ruff, black, gofmt)"]
     B --> C["Unit Tests\n(pytest, go test)"]
     C --> D["Type Check\n(mypy, tsc)"]
-    D --> E["Build Docker\nImages"]
-    E --> F["Integration\nTests"]
-    F --> G{Branch?}
-    G -->|main| H["Deploy to\nStaging K8s"]
-    G -->|tag v*| I["Deploy to\nProduction K8s"]
+    D --> E["Build & Push\nDocker Images"]
+    E --> F["Update K8s\nManifests"]
+    F --> G["Argo CD\nDetects Change"]
+    G --> H["Auto-Sync to\nMicroK8s"]
 
     style A fill:#1a1a2e,stroke:#FF6B35,color:#fff
-    style H fill:#1a1a2e,stroke:#00ADD8,color:#fff
-    style I fill:#1a1a2e,stroke:#EE4C2C,color:#fff
+    style G fill:#1a1a2e,stroke:#EF7B4D,color:#fff
+    style H fill:#1a1a2e,stroke:#326CE5,color:#fff
 ```
+
+### CI — GitHub Actions
 
 | Workflow | Trigger | Actions |
 |:---|:---|:---|
 | `ci.yml` | Every push & PR | Lint, type check, unit tests, coverage report |
-| `build.yml` | PR to `main` | Build Docker images, push to registry |
-| `deploy-staging.yml` | Merge to `main` | Deploy to staging K8s namespace |
-| `deploy-prod.yml` | Tag `v*` | Deploy to production K8s namespace |
+| `build.yml` | Merge to `main` | Build Docker images, push to container registry |
 | `train.yml` | Manual / schedule | Launch training job on GPU node |
+
+### CD — Argo CD (GitOps)
+
+| Application | Source Path | Namespace | Sync Policy |
+|:---|:---|:---|:---|
+| `deephorizon-data` | `infra/k8s/data/` | `deephorizon-data` | Auto-sync |
+| `deephorizon-ml` | `infra/k8s/ml/` | `deephorizon-ml` | Auto-sync |
+| `deephorizon-app` | `infra/k8s/app/` | `deephorizon-app` | Auto-sync |
+| `deephorizon-monitor` | `infra/k8s/monitor/` | `deephorizon-monitor` | Auto-sync |
+
+```bash
+# Argo CD watches this repo's infra/k8s/ directory
+# When K8s manifests change → Argo CD auto-syncs to MicroK8s
+# No manual kubectl apply needed for deployments
+
+# Check sync status
+argocd app list
+argocd app get deephorizon-app
+```
 
 <br>
 
@@ -738,13 +760,33 @@ flowchart LR
 
 ## ☸️ Kubernetes Deployment
 
-All services deploy on Kubernetes. GPU workloads use the NVIDIA device plugin.
+All services run on **MicroK8s** — a lightweight, single-node Kubernetes distribution ideal for GPU workloads. Deployments are managed by **Argo CD** via GitOps.
+
+### MicroK8s Setup
+
+```bash
+# Install MicroK8s
+sudo snap install microk8s --classic --channel=1.33
+
+# Enable required addons
+microk8s enable dns storage ingress gpu metallb:10.64.140.43-10.64.140.49
+
+# Enable Argo CD
+microk8s enable community
+microk8s enable argocd
+
+# Alias for convenience
+alias kubectl='microk8s kubectl'
+
+# Verify GPU is detected
+microk8s kubectl get nodes -o json | jq '.items[].status.allocatable["nvidia.com/gpu"]'
+```
 
 ### Cluster Architecture
 
 ```mermaid
 graph TB
-    subgraph K8s Cluster
+    subgraph MicroK8s Node ["MicroK8s (Single Node + L40S GPU)"]
         direction TB
 
         subgraph ns-data ["namespace: deephorizon-data"]
@@ -767,6 +809,7 @@ graph TB
         subgraph ns-monitor ["namespace: deephorizon-monitor"]
             prom["Prometheus\n(StatefulSet)"]
             grafana["Grafana\n(Deployment)"]
+            argocd["Argo CD\n(Deployment)"]
         end
     end
 
@@ -779,6 +822,9 @@ graph TB
     airflow --> minio
     prom --> api
     prom --> inference
+    argocd -->|GitOps sync| ns-data
+    argocd -->|GitOps sync| ns-ml
+    argocd -->|GitOps sync| ns-app
 
     style ns-data fill:#1a1a2e,stroke:#FF6B35,color:#fff
     style ns-ml fill:#1a1a2e,stroke:#EE4C2C,color:#fff
@@ -793,7 +839,7 @@ graph TB
 | `deephorizon-data` | Airflow, MinIO | Data pipeline and object storage |
 | `deephorizon-ml` | Training Jobs, MLflow, Inference | Model training, registry, serving |
 | `deephorizon-app` | Go API, React Frontend, Ingress | User-facing services |
-| `deephorizon-monitor` | Prometheus, Grafana | Metrics collection and visualization |
+| `deephorizon-monitor` | Prometheus, Grafana, Argo CD | Monitoring and GitOps deployment |
 
 ### GPU Workload Configuration
 
@@ -821,23 +867,42 @@ resources:
     cpu: "8"
 ```
 
-### Deployment Commands
+### Argo CD Application Setup
 
 ```bash
-# Create namespaces
-kubectl apply -f infra/k8s/namespaces.yaml
+# Register the repo as an Argo CD application
+argocd app create deephorizon-app \
+  --repo https://github.com/Octapull/deephorizon.git \
+  --path infra/k8s/app \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace deephorizon-app \
+  --sync-policy automated \
+  --auto-prune \
+  --self-heal
 
-# Deploy all services
-kubectl apply -k infra/k8s/
+# Check sync status
+argocd app list
+argocd app get deephorizon-app
 
-# Check GPU nodes
-kubectl get nodes -l nvidia.com/gpu.present=true
+# Manual sync (if needed)
+argocd app sync deephorizon-app
+```
 
-# Launch training job
-kubectl apply -f infra/k8s/ml/training-job.yaml
+### Common Commands
 
-# Watch pod status
-kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
+```bash
+# Check GPU availability
+microk8s kubectl describe node | grep -A5 "nvidia.com/gpu"
+
+# Launch training job manually
+microk8s kubectl apply -f infra/k8s/ml/training-job.yaml
+
+# Watch all DeepHorizon pods
+microk8s kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
+
+# View Argo CD dashboard
+microk8s kubectl port-forward svc/argocd-server -n argocd 8443:443
+# Open https://localhost:8443
 ```
 
 <br>
@@ -994,7 +1059,8 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 <img src="https://img.shields.io/badge/Made_with-PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/Powered_by-Go-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/Deployed_on-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/Deployed_on-MicroK8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/GitOps-Argo_CD-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
 <img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=flat-square&logo=react&logoColor=black"/>
 
 </div>

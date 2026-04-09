@@ -22,11 +22,12 @@
 
 <br>
 
-<img src="https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white"/>
-<img src="https://img.shields.io/badge/pytorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
-<img src="https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/react-18+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
-<img src="https://img.shields.io/badge/kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/pytorch-2.6+-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
+<img src="https://img.shields.io/badge/go-1.24+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
+<img src="https://img.shields.io/badge/react-19+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/microk8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/argo--cd-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
 <img src="https://img.shields.io/badge/docker-2496ED?style=flat-square&logo=docker&logoColor=white"/>
 <img src="https://img.shields.io/badge/mlflow-0194E2?style=flat-square&logo=mlflow&logoColor=white"/>
 <img src="https://img.shields.io/badge/sealed--secrets-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
@@ -37,7 +38,7 @@
 
 <br>
 
-[Genel Bakis](#-genel-bakis) · [Mimari](#%EF%B8%8F-mimari) · [ML Hatti](#-ml-hatti) · [Scriptler](#-scriptler) · [K8s Dagitimi](#%EF%B8%8F-kubernetes-dagitimi) · [Yol Haritasi](#-yol-haritasi)
+[Genel Bakis](#-genel-bakis) · [Mimari](#%EF%B8%8F-mimari) · [ML Hatti](#-ml-hatti) · [Basari Kriterleri](#-basari-kriterleri) · [Teknoloji](#-teknoloji-yigini) · [API Endpoint'leri](#-api-endpointleri) · [Scriptler](#-scriptler) · [CI/CD](#-cicd-hatti) · [K8s Dagitimi](#%EF%B8%8F-kubernetes-dagitimi) · [Secret Yonetimi](#-secret-yonetimi) · [Yol Haritasi](#-yol-haritasi) · [Kaynaklar](#-kaynaklar)
 
 </div>
 
@@ -317,8 +318,8 @@ Hiperparametre arama: Optuna (asama basina 50 deneme)
 
 | | Teknoloji | Aciklama |
 |:---|:---|:---|
-| 🐍 | **Python 3.11+** | Birincil gelistirme dili |
-| 🔥 | **PyTorch 2.x** | Model gelistirme ve egitim |
+| 🐍 | **Python 3.13+** | Birincil gelistirme dili |
+| 🔥 | **PyTorch 2.6+** | Model gelistirme ve egitim |
 | 📊 | **MLflow** | Deney takibi, model kayit defteri, artifakt deposu |
 | 🎯 | **Optuna** | Otomatik hiperparametre optimizasyonu |
 | 📡 | **gRPC + protobuf** | Model sunum protokolu |
@@ -327,7 +328,7 @@ Hiperparametre arama: Optuna (asama basina 50 deneme)
 
 | | Teknoloji | Aciklama |
 |:---|:---|:---|
-| 🖼️ | **React 18+ (TypeScript)** | SPA on yuz uygulamasi |
+| 🖼️ | **React 19+ (TypeScript)** | SPA on yuz uygulamasi |
 | 🎨 | **Tailwind CSS** | Yardimci sinif oncelikli CSS cercevesi |
 | 🔄 | **Zustand / React Query** | Durum yonetimi ve sunucu onbellegi |
 | 🌐 | **Three.js / D3.js** | Etkilesimli kara delik gorsellestirmesi |
@@ -336,7 +337,7 @@ Hiperparametre arama: Optuna (asama basina 50 deneme)
 
 | | Teknoloji | Aciklama |
 |:---|:---|:---|
-| 🏎️ | **Go 1.22+** | API gecidi dili |
+| 🏎️ | **Go 1.24+** | API gecidi dili |
 | 🛣️ | **Gin / Echo** | Yuksek performansli HTTP cercevesi |
 | 📡 | **google.golang.org/grpc** | Python cikarim servisine baglanti |
 | ✅ | **go-playground/validator** | Istek dogrulama |
@@ -348,8 +349,9 @@ Hiperparametre arama: Optuna (asama basina 50 deneme)
 |:---|:---|:---|
 | 🎼 | **Apache Airflow** | DAG tabanli hat orkestrasyon |
 | 🐳 | **Docker, Docker Compose** | Servis izolasyonu, ortam tutarliligi |
-| ☸️ | **Kubernetes** | Uretim orkestrasyonu, GPU zamanlama |
-| 🔁 | **GitHub Actions** | Otomatik test, build, deploy |
+| ☸️ | **MicroK8s** | Tek node / kucuk cluster GPU dagitimi icin hafif Kubernetes |
+| 🔁 | **GitHub Actions** | CI: lint, test, build, image push |
+| 🚀 | **Argo CD** | CD: GitOps tabanli MicroK8s'e surekli dagitim |
 | 📉 | **Prometheus + Grafana** | Metrik toplama ve gorsellestirme |
 | 🔍 | **Evidently AI** | Veri kaymasi ve model performansi izleme |
 
@@ -585,7 +587,7 @@ deephorizon/
 
 | Arac | Versiyon |
 |:---|:---|
-| Python | `3.11+` |
+| Python | `3.13+` |
 | Git | En guncel |
 
 ### Hizli Baslangic
@@ -706,29 +708,49 @@ python scripts/visualize_samples.py
 
 ## 🔁 CI/CD Hatti
 
+CI **GitHub Actions** uzerinde, CD **Argo CD** (GitOps) uzerinde calisir. Argo CD, `infra/k8s/` dizinini izler ve degisiklikleri MicroK8s'e otomatik senkronize eder.
+
 ```mermaid
 flowchart LR
     A["Push / PR"] --> B["Lint & Format\n(ruff, black, gofmt)"]
     B --> C["Birim Testleri\n(pytest, go test)"]
     C --> D["Tip Kontrolu\n(mypy, tsc)"]
-    D --> E["Docker Goruntu\nOlusturma"]
-    E --> F["Entegrasyon\nTestleri"]
-    F --> G{Dal?}
-    G -->|main| H["Staging K8s'e\nDagitim"]
-    G -->|tag v*| I["Production K8s'e\nDagitim"]
+    D --> E["Build & Push\nDocker Images"]
+    E --> F["K8s Manifest\nGuncelle"]
+    F --> G["Argo CD\nDegisiklik Algilar"]
+    G --> H["MicroK8s'e\nOtomatik Sync"]
 
     style A fill:#1a1a2e,stroke:#FF6B35,color:#fff
-    style H fill:#1a1a2e,stroke:#00ADD8,color:#fff
-    style I fill:#1a1a2e,stroke:#EE4C2C,color:#fff
+    style G fill:#1a1a2e,stroke:#EF7B4D,color:#fff
+    style H fill:#1a1a2e,stroke:#326CE5,color:#fff
 ```
+
+### CI — GitHub Actions
 
 | Is Akisi | Tetikleyici | Eylemler |
 |:---|:---|:---|
 | `ci.yml` | Her push ve PR | Lint, tip kontrolu, birim testleri, kapsam raporu |
-| `build.yml` | `main`'e PR | Docker goruntuleri olustur, registry'ye gonder |
-| `deploy-staging.yml` | `main`'e merge | Staging K8s namespace'ine dagit |
-| `deploy-prod.yml` | `v*` etiketi | Production K8s namespace'ine dagit |
+| `build.yml` | `main`'e merge | Docker goruntuleri olustur, container registry'ye gonder |
 | `train.yml` | Manuel / zamanlanmis | GPU dugumunde egitim isini baslat |
+
+### CD — Argo CD (GitOps)
+
+| Uygulama | Kaynak Yolu | Namespace | Sync Politikasi |
+|:---|:---|:---|:---|
+| `deephorizon-data` | `infra/k8s/data/` | `deephorizon-data` | Otomatik sync |
+| `deephorizon-ml` | `infra/k8s/ml/` | `deephorizon-ml` | Otomatik sync |
+| `deephorizon-app` | `infra/k8s/app/` | `deephorizon-app` | Otomatik sync |
+| `deephorizon-monitor` | `infra/k8s/monitor/` | `deephorizon-monitor` | Otomatik sync |
+
+```bash
+# Argo CD bu repo'nun infra/k8s/ dizinini izler
+# K8s manifest'leri degistiginde → Argo CD MicroK8s'e otomatik sync yapar
+# Dagitimlar icin manuel kubectl apply gerekmez
+
+# Sync durumunu kontrol et
+argocd app list
+argocd app get deephorizon-app
+```
 
 <br>
 
@@ -738,13 +760,33 @@ flowchart LR
 
 ## ☸️ Kubernetes Dagitimi
 
-Tum servisler Kubernetes uzerinde dagitilir. GPU is yukleri NVIDIA device plugin kullanir.
+Tum servisler **MicroK8s** uzerinde calisir — GPU is yukleri icin ideal, hafif, tek node Kubernetes dagitimi. Dagitimlar **Argo CD** ile GitOps uzerinden yonetilir.
+
+### MicroK8s Kurulumu
+
+```bash
+# MicroK8s kur
+sudo snap install microk8s --classic --channel=1.33
+
+# Gerekli eklentileri etkinlestir
+microk8s enable dns storage ingress gpu metallb:10.64.140.43-10.64.140.49
+
+# Argo CD'yi etkinlestir
+microk8s enable community
+microk8s enable argocd
+
+# Kolaylik icin alias
+alias kubectl='microk8s kubectl'
+
+# GPU'nun algilandigini dogrula
+microk8s kubectl get nodes -o json | jq '.items[].status.allocatable["nvidia.com/gpu"]'
+```
 
 ### Kume Mimarisi
 
 ```mermaid
 graph TB
-    subgraph K8s Cluster
+    subgraph MicroK8s Node ["MicroK8s (Tek Node + L40S GPU)"]
         direction TB
 
         subgraph ns-data ["namespace: deephorizon-data"]
@@ -767,6 +809,7 @@ graph TB
         subgraph ns-monitor ["namespace: deephorizon-monitor"]
             prom["Prometheus\n(StatefulSet)"]
             grafana["Grafana\n(Deployment)"]
+            argocd["Argo CD\n(Deployment)"]
         end
     end
 
@@ -779,6 +822,9 @@ graph TB
     airflow --> minio
     prom --> api
     prom --> inference
+    argocd -->|GitOps sync| ns-data
+    argocd -->|GitOps sync| ns-ml
+    argocd -->|GitOps sync| ns-app
 
     style ns-data fill:#1a1a2e,stroke:#FF6B35,color:#fff
     style ns-ml fill:#1a1a2e,stroke:#EE4C2C,color:#fff
@@ -793,7 +839,7 @@ graph TB
 | `deephorizon-data` | Airflow, MinIO | Veri hatti ve nesne depolama |
 | `deephorizon-ml` | Egitim Isleri, MLflow, Cikarim | Model egitimi, kayit defteri, sunum |
 | `deephorizon-app` | Go API, React On Yuz, Ingress | Kullaniciya yonelik servisler |
-| `deephorizon-monitor` | Prometheus, Grafana | Metrik toplama ve gorsellestirme |
+| `deephorizon-monitor` | Prometheus, Grafana, Argo CD | Izleme ve GitOps dagitimi |
 
 ### GPU Is Yuku Yapilandirmasi
 
@@ -821,23 +867,42 @@ resources:
     cpu: "8"
 ```
 
-### Dagitim Komutlari
+### Argo CD Uygulama Kurulumu
 
 ```bash
-# Namespace'leri olustur
-kubectl apply -f infra/k8s/namespaces.yaml
+# Repo'yu Argo CD uygulamasi olarak kaydet
+argocd app create deephorizon-app \
+  --repo https://github.com/Octapull/deephorizon.git \
+  --path infra/k8s/app \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace deephorizon-app \
+  --sync-policy automated \
+  --auto-prune \
+  --self-heal
 
-# Tum servisleri dagit
-kubectl apply -k infra/k8s/
+# Sync durumunu kontrol et
+argocd app list
+argocd app get deephorizon-app
 
-# GPU dugumlerini kontrol et
-kubectl get nodes -l nvidia.com/gpu.present=true
+# Manuel sync (gerekirse)
+argocd app sync deephorizon-app
+```
 
-# Egitim isini baslat
-kubectl apply -f infra/k8s/ml/training-job.yaml
+### Sik Kullanilan Komutlar
 
-# Pod durumunu izle
-kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
+```bash
+# GPU durumunu kontrol et
+microk8s kubectl describe node | grep -A5 "nvidia.com/gpu"
+
+# Egitim isini manuel baslat
+microk8s kubectl apply -f infra/k8s/ml/training-job.yaml
+
+# Tum DeepHorizon pod'larini izle
+microk8s kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
+
+# Argo CD dashboard'unu goruntule
+microk8s kubectl port-forward svc/argocd-server -n argocd 8443:443
+# https://localhost:8443 adresini ac
 ```
 
 <br>
@@ -994,7 +1059,8 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 <img src="https://img.shields.io/badge/Made_with-PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/Powered_by-Go-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/Deployed_on-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/Deployed_on-MicroK8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/GitOps-Argo_CD-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
 <img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=flat-square&logo=react&logoColor=black"/>
 
 </div>
