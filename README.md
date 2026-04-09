@@ -17,8 +17,8 @@
 
 <br><br>
 
-**Radyo teleskop dizilerinden elde edilen kara delik görüntülerinin**
-**derin öğrenme ile süper-rezolüsyon ve gürültü giderimi**
+**Deep learning-based super-resolution and denoising pipeline**
+**for black hole images from radio telescope arrays**
 
 <br>
 
@@ -27,14 +27,17 @@
 <img src="https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
 <img src="https://img.shields.io/badge/react-18+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
 <img src="https://img.shields.io/badge/kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
-<img src="https://img.shields.io/badge/docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white"/>
-<img src="https://img.shields.io/badge/mlflow-tracking-0194E2?style=flat-square&logo=mlflow&logoColor=white"/>
+<img src="https://img.shields.io/badge/docker-2496ED?style=flat-square&logo=docker&logoColor=white"/>
+<img src="https://img.shields.io/badge/mlflow-0194E2?style=flat-square&logo=mlflow&logoColor=white"/>
 <img src="https://img.shields.io/badge/sealed--secrets-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
-<img src="https://img.shields.io/badge/license-MIT-green?style=flat-square"/>
 
 <br>
 
-[Kurulum](#-kurulum) · [Mimari](#-mimari-genel-bakış) · [Tech Stack](#-tech-stack) · [Ekip](#-ekip-yapısı) · [Geliştirme](#-geliştirme-kuralları)
+**[English]** | [[Turkce]](README_TR.md)
+
+<br>
+
+[Overview](#-overview) · [Architecture](#-architecture) · [ML Pipeline](#-ml-pipeline) · [Scripts](#-scripts) · [K8s Deployment](#-kubernetes-deployment) · [Roadmap](#-roadmap)
 
 </div>
 
@@ -44,19 +47,19 @@
 
 <br>
 
-## 🔭 Proje Özeti
+## 🔭 Overview
 
-Radyo teleskop dizilerinden (EHT vb.) elde edilen **düşük çözünürlüklü ve bulanık** kara delik görüntülerinin, derin öğrenme tabanlı **süper-rezolüsyon** ve **gürültü giderimi** teknikleriyle netleştirilmesi.
+Black hole images captured by radio telescope arrays (EHT, etc.) suffer from severe degradation: sparse UV-plane sampling, atmospheric phase corruption, thermal noise, and diffraction-limited resolution. This project applies deep learning-based **super-resolution** and **denoising** techniques to reconstruct physically consistent, high-resolution images from these corrupted observations.
 
-Proje, model geliştirmenin yanı sıra uçtan uca bir **MLOps altyapısı**, **veri pipeline'ı**, **Go tabanlı API gateway** ve **React frontend** arayüzü kurmayı kapsar.
+Beyond model development, the project builds an end-to-end **MLOps infrastructure**, **data pipeline**, **Go API gateway**, and **React frontend**.
 
 <br>
 
 <table>
 <tr>
-<td align="center"><b>👥 Ekip</b><br><code>5 Stajyer</code></td>
-<td align="center"><b>📅 Süre</b><br><code>12 Hafta</code></td>
-<td align="center"><b>🖥️ GPU</b><br><code>1x NVIDIA L40S (48 GB)</code></td>
+<td align="center"><b>Team</b><br><code>5 Interns</code></td>
+<td align="center"><b>Duration</b><br><code>12 Weeks</code></td>
+<td align="center"><b>GPU</b><br><code>1x NVIDIA L40S (48 GB)</code></td>
 </tr>
 </table>
 
@@ -66,77 +69,77 @@ Proje, model geliştirmenin yanı sıra uçtan uca bir **MLOps altyapısı**, **
 
 <br>
 
-## 🧪 Problem Tanımı
+## 🧪 Problem Statement
 
-Kara delik görüntüleri birden fazla fiziksel ve enstrümantal nedenden dolayı **bozuk ve bulanık** elde edilir:
+Black hole images are inherently **corrupted and blurry** due to multiple physical and instrumental factors:
 
 <br>
 
 <details>
-<summary><b>🔬 Kırınım Limiti (Diffraction Limit)</b></summary>
+<summary><b>Diffraction Limit</b></summary>
 <br>
 
-Bir teleskopun açısal çözünürlüğü `θ ≈ λ/D` formülüyle belirlenir. EHT, **1.3 mm** dalga boyunda (230 GHz) gözlem yapar. Dünya çapında bir baz hattı (~10.700 km) ile bile açısal çözünürlük **~20 mikro-arcsaniye (μas)** düzeyinde kalır — bu da kara deliğin olay ufku ölçeğinde yalnızca birkaç piksellik bir görüntüye karşılık gelir.
+Angular resolution is governed by `theta ~ lambda/D`. EHT observes at **1.3 mm** (230 GHz). Even with an Earth-sized baseline (~10,700 km), resolution is **~20 micro-arcseconds (uas)** — only a few pixels across the event horizon.
 
 </details>
 
 <details>
-<summary><b>📡 Seyrek UV-Düzlemi Örneklemesi (Sparse UV-Coverage)</b></summary>
+<summary><b>Sparse UV-Plane Sampling</b></summary>
 <br>
 
-VLBI tekniğinde her teleskop çifti, Fourier uzayında (UV-düzlemi) yalnızca tek bir noktayı örnekler. Yer yüzeyindeki sınırlı teleskop sayısı nedeniyle UV-düzleminin büyük bölümü boş kalır. Van Cittert-Zernike teoremine göre görüntü, bu visibilite verilerinin ters Fourier dönüşümüyle elde edilir; **eksik frekans bilgisi** doğrudan görüntüde artifact ve belirsizlik yaratır.
+In VLBI, each telescope pair samples a single point in Fourier space (UV-plane). With limited telescopes on Earth, most of the UV-plane remains empty. By the Van Cittert-Zernike theorem, the image is the inverse Fourier transform of these visibilities — **missing frequency information** creates artifacts and ambiguity.
 
 </details>
 
 <details>
-<summary><b>🌀 Point Spread Function (PSF) / Dirty Beam</b></summary>
+<summary><b>Point Spread Function (PSF) / Dirty Beam</b></summary>
 <br>
 
-Eksik UV-coverage'ın doğal sonucu olarak, interferometrik dizinin PSF'i (dirty beam) ideal bir Airy diskinden çok uzaktır. Gözlenen görüntü, gerçek gökyüzü parlaklık dağılımının bu düzensiz PSF ile konvolüsyonudur:
+The interferometric array's PSF (dirty beam) is far from an ideal Airy disk. The observed image is a convolution of the true sky brightness with this irregular PSF:
 
 ```
 I_observed(x,y) = I_true(x,y) * PSF(x,y) + noise
 ```
 
-Bu konvolüsyon yüksek frekanslı detayları bastırarak bulanıklığa yol açar.
+This convolution suppresses high-frequency detail, causing blurring.
 
 </details>
 
 <details>
-<summary><b>🌡️ Termal Gürültü ve Sistem Sıcaklığı (T_sys)</b></summary>
+<summary><b>Thermal Noise & System Temperature (T_sys)</b></summary>
 <br>
 
-Her alıcının sistem sıcaklığı (T_sys), termal gürültünün alt sınırını belirler:
+Each receiver's system temperature sets the noise floor:
 
 ```
-SNR ∝ S · √(Δν · τ) / T_sys
+SNR ~ S * sqrt(dv * tau) / T_sys
 ```
 
-`S`: kaynak akısı · `Δν`: bant genişliği · `τ`: integrasyon süresi
+`S`: source flux · `dv`: bandwidth · `tau`: integration time
 
-Milimetre dalga boylarında atmosferik su buharı emilimi T_sys'i yükselterek SNR'yi ciddi şekilde düşürür.
-
-</details>
-
-<details>
-<summary><b>🌊 Atmosferik Faz Bozulmaları (Tropospheric Phase Corruption)</b></summary>
-<br>
-
-Milimetre dalga boylarında troposferdeki türbülanslı su buharı, gelen sinyalin fazını rastgele bozar. Bu faz hataları visibilite verilerinde **koherans kaybına** neden olur ve kalibre edilmediğinde görüntüde sahte yapılar (spurious structures) oluşturur.
+At mm wavelengths, atmospheric water vapor absorption raises T_sys, severely reducing SNR.
 
 </details>
 
 <details>
-<summary><b>⚙️ Baz Hattı Kalibrasyonu (Baseline Calibration Errors)</b></summary>
+<summary><b>Atmospheric Phase Corruption</b></summary>
 <br>
 
-Her teleskop çifti arasındaki kazanç (gain) farkları, saat senkronizasyon hataları ve polarizasyon sızıntıları, visibilite genliklerinde ve fazlarında sistematik hatalara yol açar. Bu hatalar, CLEAN veya MEM gibi klasik görüntü rekonstrüksiyon algoritmalarının çıktısını doğrudan etkiler.
+Turbulent water vapor in the troposphere randomly corrupts the incoming signal's phase at mm wavelengths. These phase errors cause **coherence loss** in visibility data and produce spurious structures when uncalibrated.
+
+</details>
+
+<details>
+<summary><b>Baseline Calibration Errors</b></summary>
+<br>
+
+Gain differences, clock synchronization errors, and polarization leakage between telescope pairs introduce systematic errors in visibility amplitudes and phases. These directly affect the output of classical reconstruction algorithms (CLEAN, MEM).
 
 </details>
 
 <br>
 
-> **🎯 Amaç:** Bulanık ve gürültülü girdi görüntüsünden → **fiziksel olarak tutarlı, yüksek çözünürlüklü** kara delik görüntüsü üretmek.
+> **Goal:** From a blurry, noisy input image → produce a **physically consistent, high-resolution** black hole image.
 
 <br>
 
@@ -144,29 +147,45 @@ Her teleskop çifti arasındaki kazanç (gain) farkları, saat senkronizasyon ha
 
 <br>
 
-## 🏗️ Mimari Genel Bakış
+## 🖼️ Sample Output
+
+<div align="center">
+
+<img src="assets/sample_degradation.png" alt="Degradation: Heavy — Degraded vs Clean" width="800"/>
+
+<sub><b>Left:</b> Degraded input (PSF blur + noise + downsample) · <b>Right:</b> Clean target (Ground Truth)</sub>
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## 🏗️ Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Ingest ["📥 Veri Katmanı"]
-        A["🛰️ FITS / HDF5\n(Ham Veri)"] --> B["⚙️ Data Pipeline\n(Airflow)"]
-        B --> C["📦 Feature Store\n(MinIO + DVC)"]
+    subgraph Ingest ["Data Layer"]
+        A["FITS / HDF5\n(Raw Data)"] --> B["Data Pipeline\n(Airflow)"]
+        B --> C["Feature Store\n(MinIO + DVC)"]
     end
 
-    subgraph ML ["🧠 ML Katmanı"]
-        C --> D["🔥 Training\n(PyTorch)"]
-        D --> E["📊 MLflow\n(Registry)"]
+    subgraph ML ["ML Layer"]
+        C --> D["Training\n(PyTorch)"]
+        D --> E["MLflow\n(Registry)"]
     end
 
-    subgraph Serve ["🌐 Servis Katmanı"]
-        E --> F["🐍 Inference\n(gRPC)"]
-        F --> G["🔷 Go API\nGateway"]
-        G --> H["⚛️ React\nFrontend"]
+    subgraph Serve ["Serving Layer"]
+        E --> F["Inference\n(gRPC)"]
+        F --> G["Go API\nGateway"]
+        G --> H["React\nFrontend"]
     end
 
-    subgraph Monitor ["📈 İzleme"]
-        G --> I["📉 Prometheus"]
-        I --> J["📊 Grafana"]
+    subgraph Monitor ["Monitoring"]
+        G --> I["Prometheus"]
+        I --> J["Grafana"]
     end
 
     style Ingest fill:#1a1a2e,stroke:#FF6B35,color:#fff
@@ -177,18 +196,104 @@ flowchart LR
 
 <br>
 
-### 📋 Veri Akış Sırası
+### Data Flow
 
-| Adım | Açıklama |
+| Step | Description |
 |:---:|---|
-| **1** | Ham teleskop verileri (FITS/HDF5) → Airflow DAG'ları ile ingest ve işleme |
-| **2** | İşlenmiş veriler → DVC ile versiyonlama → MinIO'ya yazma |
-| **3** | PyTorch ile model eğitimi → tüm deneyler MLflow'a loglama |
-| **4** | En iyi model → MLflow Registry üzerinden promote |
-| **5** | Python gRPC servisi → modeli yükleme ve inference |
-| **6** | Go API Gateway → REST API → gRPC ile Python servisine iletme |
-| **7** | React frontend → Go API üzerinden görüntü yükleme ve sonuç görüntüleme |
-| **8** | Prometheus → metrik toplama → Grafana ile görselleştirme |
+| **1** | Raw telescope data (FITS/HDF5) → Airflow DAGs for ingest and processing |
+| **2** | Processed data → DVC versioning → write to MinIO |
+| **3** | PyTorch model training → all experiments logged to MLflow |
+| **4** | Best model → promote via MLflow Registry |
+| **5** | Python gRPC service → load model and serve inference |
+| **6** | Go API Gateway → REST API → forward to Python service via gRPC |
+| **7** | React frontend → upload images and display results via Go API |
+| **8** | Prometheus → collect metrics → visualize with Grafana |
+
+<br>
+
+---
+
+<br>
+
+## 🧠 ML Pipeline
+
+### Model Progression
+
+Training follows a progressive strategy — start simple, increase complexity:
+
+| Phase | Model | Architecture | Purpose |
+|:---:|:---|:---|:---|
+| **1** | U-Net (baseline) | Encoder-decoder with skip connections | Establish baseline PSNR/SSIM |
+| **2** | Pix2Pix | Conditional GAN (U-Net generator + PatchGAN discriminator) | Learn perceptual quality beyond pixel loss |
+| **3** | ESRGAN | RRDB generator + relativistic discriminator | High-fidelity super-resolution |
+| **4** | Restormer | Transformer-based multi-head attention | SOTA denoising + SR, capture long-range dependencies |
+
+### Loss Functions
+
+| Loss | Weight | Purpose |
+|:---|:---:|:---|
+| **L1 (pixel)** | 1.0 | Pixel-level reconstruction accuracy |
+| **Perceptual (VGG)** | 0.1 | Feature-level similarity for visual quality |
+| **Adversarial** | 0.01 | GAN loss for sharp, realistic outputs |
+| **Physics-informed** | 0.05 | Ring structure consistency, flux conservation |
+
+### Training Strategy
+
+```
+Phase 1: U-Net with L1 loss only (warm-up, ~50 epochs)
+Phase 2: Pix2Pix with L1 + adversarial (~100 epochs)
+Phase 3: ESRGAN with L1 + perceptual + adversarial (~200 epochs)
+Phase 4: Restormer with full loss suite (~300 epochs)
+
+All phases: mixed precision (torch.amp), gradient accumulation (4 steps)
+Hyperparameter search: Optuna (50 trials per phase)
+```
+
+<br>
+
+---
+
+<br>
+
+## 🎯 Success Criteria
+
+### Image Quality Metrics
+
+| Metric | Target | Baseline (Dirty Image) | Description |
+|:---|:---:|:---:|:---|
+| **PSNR** | >= 32 dB | ~18 dB | Peak Signal-to-Noise Ratio |
+| **SSIM** | >= 0.90 | ~0.35 | Structural Similarity Index |
+| **LPIPS** | <= 0.10 | ~0.55 | Learned Perceptual Image Patch Similarity (lower = better) |
+| **FID** | <= 30 | ~180 | Frechet Inception Distance (lower = better) |
+
+### Physics Consistency
+
+| Metric | Target | Description |
+|:---|:---:|:---|
+| **Flux Conservation** | <= 5% error | Total flux before and after must be preserved |
+| **Ring Diameter** | <= 2 uas error | Reconstructed ring diameter vs ground truth |
+| **Asymmetry Ratio** | <= 10% error | Brightness asymmetry must be preserved |
+
+### System Performance
+
+| Metric | Target | Description |
+|:---|:---:|:---|
+| **Inference Latency** | <= 500ms | Single 512x512 image (GPU) |
+| **API Response Time** | <= 1s | End-to-end including upload and download |
+| **Throughput** | >= 10 req/s | Sustained load on inference server |
+| **Model Size** | <= 200 MB | ONNX-optimized model |
+| **GPU Memory** | <= 8 GB | Inference-time VRAM usage |
+
+### MLOps Maturity
+
+| Criteria | Requirement |
+|:---|:---|
+| **Experiment Tracking** | All runs logged in MLflow with hyperparams, metrics, artifacts |
+| **Model Registry** | Staging → Production promotion with validation gate |
+| **Data Versioning** | All datasets versioned with DVC |
+| **CI/CD** | Automated lint, test, build, deploy on every PR |
+| **Monitoring** | Prometheus metrics + Grafana dashboards + Evidently drift detection |
+| **Test Coverage** | >= 80% across data pipeline, ML evaluation, and API |
 
 <br>
 
@@ -198,61 +303,55 @@ flowchart LR
 
 ## ⚡ Tech Stack
 
-### 🗄️ Veri (Data Engineering)
+### Data Engineering
 
-| | Teknoloji | Açıklama |
+| | Technology | Description |
 |:---|:---|:---|
-| 🔢 | **NumPy, SciPy, OpenCV, scikit-image** | Görüntü manipülasyonu, sinyal işleme |
-| 🔭 | **astropy, eht-imaging** | FITS dosya okuma, VLBI veri işleme, simülasyon |
-| 📌 | **DVC** | Veri setlerinin Git-benzeri versiyonlanması |
-| ✅ | **Great Expectations** | Otomatik veri doğrulama ve profiling |
-| 💾 | **MinIO** | S3-uyumlu lokal depolama |
+| 🔢 | **NumPy, SciPy, OpenCV, scikit-image** | Image manipulation, signal processing |
+| 🔭 | **astropy, eht-imaging** | FITS file I/O, VLBI data processing, simulation |
+| 📌 | **DVC** | Git-like data versioning |
+| ✅ | **Great Expectations** | Automated data validation and profiling |
+| 💾 | **MinIO** | S3-compatible local object storage |
 
-### 🧠 ML (Machine Learning)
+### Machine Learning
 
-| | Teknoloji | Açıklama |
+| | Technology | Description |
 |:---|:---|:---|
-| 🐍 | **Python 3.11+** | Ana geliştirme dili |
-| 🔥 | **PyTorch 2.x** | Model geliştirme ve eğitim |
+| 🐍 | **Python 3.11+** | Primary development language |
+| 🔥 | **PyTorch 2.x** | Model development and training |
 | 📊 | **MLflow** | Experiment tracking, model registry, artifact store |
-| 🎯 | **Optuna** | Otomatik hiperparametre optimizasyonu |
-| 📡 | **gRPC + protobuf** | Model servis iletişim protokolü |
+| 🎯 | **Optuna** | Automated hyperparameter optimization |
+| 📡 | **gRPC + protobuf** | Model serving protocol |
 
-### ⚛️ Frontend
+### Frontend
 
-| | Teknoloji | Açıklama |
+| | Technology | Description |
 |:---|:---|:---|
-| 🖼️ | **React 18+ (TypeScript)** | SPA frontend uygulaması |
+| 🖼️ | **React 18+ (TypeScript)** | SPA frontend application |
 | 🎨 | **Tailwind CSS** | Utility-first CSS framework |
-| 🔄 | **Zustand / React Query** | Sunucu state yönetimi ve caching |
-| 🌐 | **Three.js / D3.js** | Kara delik görüntülerinin interaktif görselleştirmesi |
+| 🔄 | **Zustand / React Query** | State management and server cache |
+| 🌐 | **Three.js / D3.js** | Interactive black hole visualization |
 
-### 🔷 API Gateway
+### API Gateway
 
-| | Teknoloji | Açıklama |
+| | Technology | Description |
 |:---|:---|:---|
-| 🏎️ | **Go 1.22+** | API gateway geliştirme dili |
-| 🛣️ | **Gin / Echo** | Yüksek performanslı HTTP framework |
-| 📡 | **google.golang.org/grpc** | Python inference servisine bağlantı |
+| 🏎️ | **Go 1.22+** | API gateway language |
+| 🛣️ | **Gin / Echo** | High-performance HTTP framework |
+| 📡 | **google.golang.org/grpc** | Connection to Python inference service |
 | ✅ | **go-playground/validator** | Request validation |
-| 📖 | **Swagger / OpenAPI 3.0** | Otomatik API dokümantasyonu |
+| 📖 | **Swagger / OpenAPI 3.0** | Auto-generated API documentation |
 
-### 🔧 MLOps
+### MLOps & Infrastructure
 
-| | Teknoloji | Açıklama |
+| | Technology | Description |
 |:---|:---|:---|
-| 🎼 | **Apache Airflow** | DAG tabanlı pipeline yönetimi |
-| 🐳 | **Docker, Docker Compose** | Servis izolasyonu ve ortam tutarlılığı |
-| 🔁 | **GitHub Actions** | Otomatik test, build, deploy |
-| 🌿 | **Git + GitHub** | Kod versiyonlama ve code review |
-
-### 📈 Monitoring
-
-| | Teknoloji | Açıklama |
-|:---|:---|:---|
-| 📉 | **Prometheus** | Zaman serisi metrik toplama |
-| 📊 | **Grafana** | Metrik görselleştirme ve alerting |
-| 🔍 | **Evidently AI** | Data drift ve model performance monitoring |
+| 🎼 | **Apache Airflow** | DAG-based pipeline orchestration |
+| 🐳 | **Docker, Docker Compose** | Service isolation, environment consistency |
+| ☸️ | **Kubernetes** | Production orchestration, GPU scheduling |
+| 🔁 | **GitHub Actions** | Automated test, build, deploy |
+| 📉 | **Prometheus + Grafana** | Metrics collection and visualization |
+| 🔍 | **Evidently AI** | Data drift and model performance monitoring |
 
 <br>
 
@@ -260,7 +359,54 @@ flowchart LR
 
 <br>
 
-## 👥 Ekip Yapısı
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|:---|:---|:---|
+| `GET` | `/health` | Health check, returns service status |
+| `GET` | `/models` | List available models with metadata |
+| `GET` | `/models/:id` | Get specific model details (architecture, metrics) |
+| `POST` | `/enhance` | Upload image, return super-resolved result |
+| `POST` | `/enhance/batch` | Batch enhancement (up to 10 images) |
+| `GET` | `/enhance/:job_id` | Poll async job status |
+| `GET` | `/metrics` | Prometheus metrics endpoint |
+
+### `POST /enhance` — Request
+
+```json
+{
+  "image": "<base64-encoded FITS/PNG>",
+  "model": "restormer-v1",
+  "output_format": "png",
+  "scale_factor": 4
+}
+```
+
+### `POST /enhance` — Response
+
+```json
+{
+  "job_id": "abc-123",
+  "status": "completed",
+  "result": {
+    "image": "<base64-encoded result>",
+    "metrics": {
+      "psnr": 33.2,
+      "ssim": 0.92,
+      "inference_time_ms": 312
+    },
+    "model": "restormer-v1"
+  }
+}
+```
+
+<br>
+
+---
+
+<br>
+
+## 👥 Team Structure
 
 <br>
 
@@ -268,23 +414,23 @@ flowchart LR
 <tr>
 <td align="center" width="20%">
 
-### 🗄️ Stajyer 1
+### Intern 1
 **Data Engineer**
 
 </td>
 <td>
 
-Veri pipeline'ının sahibi. FITS/HDF5 dosyalarının parse edilmesinden sentetik veri üretimine, DVC versiyonlamadan Great Expectations validation suite'ine kadar tüm veri akışından sorumlu.
+Owns the data pipeline. Responsible for FITS/HDF5 parsing, synthetic data generation, DVC versioning, and Great Expectations validation suite.
 
 <details>
-<summary>📚 Araştırma Konuları</summary>
+<summary>Research Topics</summary>
 
-- FITS dosya formatı ve `astropy` ile okuma/yazma
-- `eht-imaging` ile GRMHD simülasyonlarından görüntü üretimi
-- PSF modelleme ve sentetik degradation pipeline tasarımı
-- Airflow DAG yazımı ve scheduling
-- DVC remote storage konfigürasyonu (MinIO backend)
-- Great Expectations ile veri profiling ve expectation suite
+- FITS file format and `astropy` I/O
+- `eht-imaging` GRMHD simulation image generation
+- PSF modeling and synthetic degradation pipeline design
+- Airflow DAG authoring and scheduling
+- DVC remote storage configuration (MinIO backend)
+- Great Expectations profiling and expectation suites
 
 </details>
 
@@ -294,24 +440,24 @@ Veri pipeline'ının sahibi. FITS/HDF5 dosyalarının parse edilmesinden senteti
 <tr>
 <td align="center">
 
-### 🧠 Stajyer 2
+### Intern 2
 **ML Engineer**
-*Model Geliştirme*
+*Model Development*
 
 </td>
 <td>
 
-Model mimarisinin ve eğitim sürecinin sahibi. Baseline'dan SOTA modellere kadar tüm model geliştirme, eğitim ve hiperparametre optimizasyonundan sorumlu.
+Owns model architecture and training. Responsible for all model development from baseline to SOTA, training loops, and hyperparameter optimization.
 
 <details>
-<summary>📚 Araştırma Konuları</summary>
+<summary>Research Topics</summary>
 
-- Super-resolution literatürü: `SRCNN → EDSR → ESRGAN → Real-ESRGAN → Restormer`
-- GAN eğitim dinamikleri (mode collapse, training instability) ve çözümler
-- Physics-informed neural networks ve custom loss function tasarımı
-- Progressive training stratejileri
-- Mixed precision training (`torch.amp`) ve gradient accumulation
-- Optuna ile hiperparametre arama stratejileri
+- Super-resolution literature: `SRCNN → EDSR → ESRGAN → Real-ESRGAN → Restormer`
+- GAN training dynamics (mode collapse, training instability) and solutions
+- Physics-informed neural networks and custom loss function design
+- Progressive training strategies
+- Mixed precision training (`torch.amp`) and gradient accumulation
+- Optuna hyperparameter search strategies
 
 </details>
 
@@ -321,24 +467,24 @@ Model mimarisinin ve eğitim sürecinin sahibi. Baseline'dan SOTA modellere kada
 <tr>
 <td align="center">
 
-### 📊 Stajyer 3
+### Intern 3
 **ML Engineer**
-*Değerlendirme & Optimizasyon*
+*Evaluation & Optimization*
 
 </td>
 <td>
 
-Model kalitesinin ve inference performansının sahibi. Metrik implementasyonu, benchmark suite, model optimizasyonu (ONNX, TensorRT) ve gRPC inference servisinden sorumlu.
+Owns model quality and inference performance. Responsible for metric implementation, benchmark suite, model optimization (ONNX, TensorRT), and gRPC inference service.
 
 <details>
-<summary>📚 Araştırma Konuları</summary>
+<summary>Research Topics</summary>
 
-- Görüntü kalite metrikleri: `PSNR`, `SSIM`, `LPIPS`, `FID` — matematiksel temeller
-- Fiziksel tutarlılık metriği tasarımı (PSF consistency check)
-- ONNX export ve TensorRT ile model optimizasyonu
-- gRPC + protobuf ile Python inference servisi geliştirme
-- Model profiling ve latency analizi (`torch.profiler`)
-- MLflow model registry entegrasyonu ve artifact yönetimi
+- Image quality metrics: `PSNR`, `SSIM`, `LPIPS`, `FID` — mathematical foundations
+- Physics consistency metric design (PSF consistency check)
+- ONNX export and TensorRT model optimization
+- gRPC + protobuf Python inference service development
+- Model profiling and latency analysis (`torch.profiler`)
+- MLflow model registry integration and artifact management
 
 </details>
 
@@ -348,24 +494,24 @@ Model kalitesinin ve inference performansının sahibi. Metrik implementasyonu, 
 <tr>
 <td align="center">
 
-### 🔧 Stajyer 4
+### Intern 4
 **MLOps Engineer**
 
 </td>
 <td>
 
-Otomasyon ve altyapının sahibi. CI/CD pipeline'ları, Docker ortamları, Airflow kurulumu, MLflow konfigürasyonu ve deployment süreçlerinden sorumlu.
+Owns automation and infrastructure. Responsible for CI/CD pipelines, Docker environments, Airflow setup, MLflow configuration, and K8s deployment.
 
 <details>
-<summary>📚 Araştırma Konuları</summary>
+<summary>Research Topics</summary>
 
-- Docker multi-stage build ve image optimizasyonu
-- Docker Compose ile multi-service orkestrasyon
-- GitHub Actions workflow tasarımı (matrix builds, caching, secrets)
-- MLflow Tracking Server kurulumu (backend store + artifact store)
-- Airflow kurulumu ve DAG best practices
-- MinIO kurulumu ve S3-uyumlu bucket yönetimi
-- Otomatik model validation ve staging → production promotion
+- Docker multi-stage builds and image optimization
+- Docker Compose multi-service orchestration
+- GitHub Actions workflow design (matrix builds, caching, secrets)
+- MLflow Tracking Server setup (backend store + artifact store)
+- Airflow setup and DAG best practices
+- MinIO setup and S3-compatible bucket management
+- Kubernetes GPU scheduling and Sealed Secrets
 
 </details>
 
@@ -375,25 +521,25 @@ Otomasyon ve altyapının sahibi. CI/CD pipeline'ları, Docker ortamları, Airfl
 <tr>
 <td align="center">
 
-### 🌐 Stajyer 5
+### Intern 5
 **Frontend & API Gateway**
 
 </td>
 <td>
 
-Kullanıcıya dokunan tüm katmanların sahibi. Go API gateway, React frontend, Prometheus/Grafana monitoring ve Evidently AI drift detection'dan sorumlu.
+Owns all user-facing layers. Responsible for Go API gateway, React frontend, Prometheus/Grafana monitoring, and Evidently AI drift detection.
 
 <details>
-<summary>📚 Araştırma Konuları</summary>
+<summary>Research Topics</summary>
 
-- Go ile REST API geliştirme (Gin / Echo framework)
-- Go gRPC client implementasyonu ve connection pooling
-- Protobuf schema tanımlama (`.proto` dosyaları)
-- React + TypeScript ile SPA geliştirme
-- Dosya upload/download handling (multipart form, streaming)
-- Prometheus client library ile custom metrik tanımlama
+- Go REST API development (Gin / Echo framework)
+- Go gRPC client implementation and connection pooling
+- Protobuf schema definition (`.proto` files)
+- React + TypeScript SPA development
+- File upload/download handling (multipart form, streaming)
+- Prometheus client library custom metric definition
 - Grafana dashboard provisioning (JSON model)
-- Evidently AI ile data drift ve model performance raporu
+- Evidently AI data drift and model performance reporting
 
 </details>
 
@@ -407,38 +553,24 @@ Kullanıcıya dokunan tüm katmanların sahibi. Go API gateway, React frontend, 
 
 <br>
 
-## 🖼️ Örnek Çıktı
-
-<div align="center">
-
-<img src="assets/sample_degradation.png" alt="Degradation: Heavy — Bozuk vs Temiz" width="800"/>
-
-<sub><b>Sol:</b> Bozuk girdi (PSF blur + gürültü + downsample) · <b>Sağ:</b> Temiz hedef (Ground Truth)</sub>
-
-</div>
-
-<br>
-
----
-
-<br>
-
-## 📁 Repo Yapısı
+## 📁 Repo Structure
 
 ```
 deephorizon/
 │
-├── 📄 README.md
-├── 📄 .gitignore
+├── README.md                              # English documentation
+├── README_TR.md                           # Turkish documentation
+├── requirements.txt                       # Python dependencies
+├── .gitignore
 │
-├── 🖼️ assets/
+├── assets/
 │   └── sample_degradation.png
 │
-└── 🔧 scripts/
-    ├── download_eht_data.py          # EHT UVFITS veri indirici (7 dataset, 88 dosya)
-    ├── generate_synthetic_data.py     # eht-imaging ile sentetik veri üretici (128x128)
-    ├── generate_training_data.py      # 512x512 eğitim verisi üretici (10K çift)
-    └── visualize_samples.py           # Veri görselleştirme (PNG çıktı)
+└── scripts/
+    ├── download_eht_data.py               # EHT UVFITS downloader (7 datasets, 88 files)
+    ├── generate_synthetic_data.py          # eht-imaging synthetic generator (128x128)
+    ├── generate_training_data.py           # Training data generator (512x512, 10K pairs)
+    └── visualize_samples.py               # Data visualization (PNG output)
 ```
 
 <br>
@@ -447,28 +579,28 @@ deephorizon/
 
 <br>
 
-## 🚀 Kurulum
+## 🚀 Getting Started
 
-### Gereksinimler
+### Prerequisites
 
-| Araç | Versiyon |
+| Tool | Version |
 |:---|:---|
 | Python | `3.11+` |
 | Git | Latest |
 
-### ⚡ Hızlı Başlangıç
+### Quick Start
 
 ```bash
-# Repo'yu klonla
+# Clone the repo
 git clone https://github.com/Octapull/deephorizon.git
 cd deephorizon
 
-# Virtual environment kur
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Bağımlılıkları yükle
-pip install ehtim astropy numpy scipy matplotlib requests
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 <br>
@@ -477,94 +609,126 @@ pip install ehtim astropy numpy scipy matplotlib requests
 
 <br>
 
-## 🔧 Scriptler
+## 🔧 Scripts
 
-### 📡 `download_eht_data.py` — EHT Gerçek Veri İndirici
+### `download_eht_data.py` — EHT Observation Downloader
 
-EHT kolaborasyonunun yayınladığı tüm kalibre edilmiş UVFITS gözlem verilerini GitHub'dan indirir.
+Downloads all publicly released calibrated UVFITS visibility data from the EHT collaboration.
 
-| Dataset | Kaynak | Dosya Sayısı |
+| Dataset | Source | Files |
 |:---|:---|:---:|
-| `m87_2017` | M87* — ilk kara delik görüntüsü | 8 |
+| `m87_2017` | M87* — first black hole image | 8 |
 | `3c279_2017` | 3C279 quasar | 8 |
-| `sgra_2017` | Sgr A* — Samanyolu merkezi | 20 |
-| `m87_2018` | M87* — ikinci yıl gözlemi | 24 |
+| `sgra_2017` | Sgr A* — Milky Way center | 20 |
+| `m87_2018` | M87* — second year observation | 24 |
 | `cena_2017` | Centaurus A | 4 |
-| `m87_2017_pol` | M87* polarize veri | 16 |
-| `sgra_2017_pol` | Sgr A* polarize veri | 8 |
+| `m87_2017_pol` | M87* polarized data | 16 |
+| `sgra_2017_pol` | Sgr A* polarized data | 8 |
 
 ```bash
-# Tüm datasetleri indir (88 UVFITS dosyası)
+# Download all datasets (88 UVFITS files)
 python scripts/download_eht_data.py
 
-# Sadece belirli datasetleri indir
+# Download specific datasets only
 python scripts/download_eht_data.py --datasets m87_2017 sgra_2017
 
-# Çıktı dizini: data/raw/eht/
+# Output: data/raw/eht/
 ```
 
 <br>
 
-### 🧪 `generate_synthetic_data.py` — Sentetik Veri Üretici (eht-imaging)
+### `generate_synthetic_data.py` — Synthetic Data Generator (eht-imaging)
 
-`eht-imaging` kütüphanesi ile fiziksel olarak gerçekçi kara delik modelleri üretir. 128x128 çözünürlükte hızlı prototipleme için uygundur.
+Generates physically realistic black hole models using the `eht-imaging` library. 128x128 resolution for rapid prototyping.
 
-- **Crescent (hilal)** modeli — M87* benzeri asimetrik parlaklık
-- **Ring (halka)** modeli — simetrik halka yapısı
-- 4 degradation seviyesi: `light`, `medium`, `heavy`, `extreme`
+- **Crescent** model — M87*-like asymmetric brightness
+- **Ring** model — symmetric ring structure
+- 4 degradation levels: `light`, `medium`, `heavy`, `extreme`
 
 ```bash
 python scripts/generate_synthetic_data.py
 
-# Çıktı dizini: data/raw/simulated/
-#   clean/     → temiz görüntüler (.npy)
-#   degraded/  → bozuk görüntüler (.npy)
-#   pairs/     → görsel karşılaştırmalar (.png)
+# Output: data/raw/simulated/
+#   clean/     → clean images (.npy)
+#   degraded/  → degraded images (.npy)
+#   pairs/     → visual comparisons (.png)
 ```
 
 <br>
 
-### 🏋️ `generate_training_data.py` — Eğitim Verisi Üretici (512x512)
+### `generate_training_data.py` — Training Data Generator (512x512)
 
-Model eğitimi için **10,000 clean/degraded çift** üretir. 512x512 çözünürlükte, 3 farklı model tipi:
+Generates **10,000 clean/degraded pairs** for model training at 512x512 resolution with 3 model types:
 
-| Model | Oran | Açıklama |
+| Model | Ratio | Description |
 |:---|:---:|:---|
-| Crescent (hilal) | %60 | Asimetrik parlaklıklı halka (M87* benzeri) |
-| Ring (halka) | %25 | Simetrik halka |
-| Double Ring | %15 | İç + dış halka (jet yapısı simülasyonu) |
+| Crescent | 60% | Asymmetric brightness ring (M87*-like) |
+| Ring | 25% | Symmetric ring |
+| Double Ring | 15% | Inner + outer ring (jet structure simulation) |
 
-Degradation seviyeleri (`×2500` çift her biri):
+Degradation levels (x2500 pairs each):
 
-| Seviye | PSF Blur | Gürültü | Downsample |
+| Level | PSF Blur | Noise | Downsample |
 |:---|:---:|:---:|:---:|
-| `light` | 3.0 | %2 | 1x |
-| `medium` | 5.0 | %5 | 2x |
-| `heavy` | 8.0 | %10 | 2x |
-| `extreme` | 12.0 | %15 | 4x |
+| `light` | 3.0 | 2% | 1x |
+| `medium` | 5.0 | 5% | 2x |
+| `heavy` | 8.0 | 10% | 2x |
+| `extreme` | 12.0 | 15% | 4x |
 
 ```bash
 python scripts/generate_training_data.py
 
-# Çıktı dizini: data/training/
-#   clean/     → 10,000 temiz görüntü (.npy, float32)
-#   degraded/  → 10,000 bozuk görüntü (.npy, float32)
-# Tahmini boyut: ~2.5 GB
+# Output: data/training/
+#   clean/     → 10,000 clean images (.npy, float32)
+#   degraded/  → 10,000 degraded images (.npy, float32)
+# Estimated size: ~2.5 GB
 ```
 
 <br>
 
-### 🎨 `visualize_samples.py` — Veri Görselleştirme
+### `visualize_samples.py` — Data Visualization
 
-EHT gerçek verisinden dirty image üretir ve sentetik veri çiftlerini yüksek kaliteli PNG olarak kaydeder.
+Renders EHT real observations as dirty images and generates high-quality PNG comparisons for synthetic pairs.
 
 ```bash
 python scripts/visualize_samples.py
 
-# Çıktı dizini: data/visualizations/
-#   eht/        → dirty image PNG'leri
-#   synthetic/  → karşılaştırma ve grid görselleri
+# Output: data/visualizations/
+#   eht/        → dirty image PNGs
+#   synthetic/  → comparison and grid images
 ```
+
+<br>
+
+---
+
+<br>
+
+## 🔁 CI/CD Pipeline
+
+```mermaid
+flowchart LR
+    A["Push / PR"] --> B["Lint & Format\n(ruff, black, gofmt)"]
+    B --> C["Unit Tests\n(pytest, go test)"]
+    C --> D["Type Check\n(mypy, tsc)"]
+    D --> E["Build Docker\nImages"]
+    E --> F["Integration\nTests"]
+    F --> G{Branch?}
+    G -->|main| H["Deploy to\nStaging K8s"]
+    G -->|tag v*| I["Deploy to\nProduction K8s"]
+
+    style A fill:#1a1a2e,stroke:#FF6B35,color:#fff
+    style H fill:#1a1a2e,stroke:#00ADD8,color:#fff
+    style I fill:#1a1a2e,stroke:#EE4C2C,color:#fff
+```
+
+| Workflow | Trigger | Actions |
+|:---|:---|:---|
+| `ci.yml` | Every push & PR | Lint, type check, unit tests, coverage report |
+| `build.yml` | PR to `main` | Build Docker images, push to registry |
+| `deploy-staging.yml` | Merge to `main` | Deploy to staging K8s namespace |
+| `deploy-prod.yml` | Tag `v*` | Deploy to production K8s namespace |
+| `train.yml` | Manual / schedule | Launch training job on GPU node |
 
 <br>
 
@@ -574,9 +738,9 @@ python scripts/visualize_samples.py
 
 ## ☸️ Kubernetes Deployment
 
-Tüm servisler Kubernetes üzerinde deploy edilir. GPU workload'ları için NVIDIA device plugin kullanılır.
+All services deploy on Kubernetes. GPU workloads use the NVIDIA device plugin.
 
-### Cluster Yapısı
+### Cluster Architecture
 
 ```mermaid
 graph TB
@@ -622,16 +786,16 @@ graph TB
     style ns-monitor fill:#1a1a2e,stroke:#E6DB74,color:#fff
 ```
 
-### Namespace'ler
+### Namespaces
 
-| Namespace | Servisler | Açıklama |
+| Namespace | Services | Description |
 |:---|:---|:---|
-| `deephorizon-data` | Airflow, MinIO | Veri pipeline ve object storage |
-| `deephorizon-ml` | Training Jobs, MLflow, Inference | Model eğitimi, registry, serving |
-| `deephorizon-app` | Go API, React Frontend, Ingress | Kullanıcıya açık servisler |
-| `deephorizon-monitor` | Prometheus, Grafana | Metrik toplama ve görselleştirme |
+| `deephorizon-data` | Airflow, MinIO | Data pipeline and object storage |
+| `deephorizon-ml` | Training Jobs, MLflow, Inference | Model training, registry, serving |
+| `deephorizon-app` | Go API, React Frontend, Ingress | User-facing services |
+| `deephorizon-monitor` | Prometheus, Grafana | Metrics collection and visualization |
 
-### GPU Workload Konfigürasyonu
+### GPU Workload Configuration
 
 ```yaml
 # Training Job — NVIDIA L40S (48 GB)
@@ -645,7 +809,7 @@ resources:
     memory: "48Gi"
     cpu: "16"
 
-# Inference Server — daha düşük kaynak
+# Inference Server — lower resources
 resources:
   requests:
     nvidia.com/gpu: 1
@@ -657,22 +821,22 @@ resources:
     cpu: "8"
 ```
 
-### Deployment Komutları
+### Deployment Commands
 
 ```bash
-# Namespace'leri oluştur
+# Create namespaces
 kubectl apply -f infra/k8s/namespaces.yaml
 
-# Tüm servisleri deploy et
+# Deploy all services
 kubectl apply -k infra/k8s/
 
-# GPU node'larını kontrol et
+# Check GPU nodes
 kubectl get nodes -l nvidia.com/gpu.present=true
 
-# Training job başlat
+# Launch training job
 kubectl apply -f infra/k8s/ml/training-job.yaml
 
-# Pod durumlarını izle
+# Watch pod status
 kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
 ```
 
@@ -684,56 +848,56 @@ kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
 
 ## 🔐 Secret Management
 
-Tüm hassas bilgiler (API key, credentials, connection string) **Kubernetes Secrets** ve **Sealed Secrets** ile yönetilir. Kaynak kodda veya environment dosyalarında **hiçbir secret bulunmaz**.
+All sensitive data (API keys, credentials, connection strings) are managed via **Kubernetes Secrets** and **Sealed Secrets**. No secrets exist in source code or environment files.
 
-### Secret Akışı
+### Secret Flow
 
 ```
-Developer → kubeseal encrypt → SealedSecret (Git'e commit edilir)
+Developer → kubeseal encrypt → SealedSecret (committed to Git)
                                      ↓
                              Sealed Secrets Controller
                                      ↓
-                             Kubernetes Secret (cluster içi)
+                             Kubernetes Secret (cluster-internal)
                                      ↓
                              Pod env vars / volume mounts
 ```
 
-### Secret Türleri
+### Secret Inventory
 
-| Secret | Namespace | Kullanım |
+| Secret | Namespace | Usage |
 |:---|:---|:---|
 | `minio-credentials` | `deephorizon-data` | MinIO access/secret key |
-| `mlflow-db-credentials` | `deephorizon-ml` | MLflow PostgreSQL bağlantısı |
+| `mlflow-db-credentials` | `deephorizon-ml` | MLflow PostgreSQL connection |
 | `mlflow-s3-credentials` | `deephorizon-ml` | MLflow artifact store (MinIO) |
 | `inference-api-key` | `deephorizon-ml` | gRPC inference auth token |
-| `grafana-admin` | `deephorizon-monitor` | Grafana admin şifresi |
+| `grafana-admin` | `deephorizon-monitor` | Grafana admin password |
 | `github-registry` | `deephorizon-app` | Container image pull secret |
 
-### Sealed Secrets Kullanımı
+### Sealed Secrets Usage
 
 ```bash
-# Sealed Secrets controller kur
+# Install Sealed Secrets controller
 helm install sealed-secrets sealed-secrets/sealed-secrets \
   -n kube-system
 
-# Secret oluştur ve encrypt et
+# Create and encrypt a secret
 kubectl create secret generic minio-credentials \
   --from-literal=access-key=CHANGEME \
   --from-literal=secret-key=CHANGEME \
   --dry-run=client -o yaml | \
   kubeseal --format yaml > infra/k8s/secrets/minio-sealed.yaml
 
-# Git'e commit et (şifreli hali güvenle commit edilebilir)
+# Safe to commit (encrypted)
 git add infra/k8s/secrets/minio-sealed.yaml
 ```
 
-### Kurallar
+### Rules
 
-- `.env` dosyaları `.gitignore`'da ve **asla commit edilmez**
-- Secret rotation 90 günde bir yapılır
-- Production secret'lara sadece cluster admin erişir
-- Tüm secret erişimleri audit log'lanır
-- Development ortamında `kubectl create secret` ile lokal secret'lar kullanılır
+- `.env` files are in `.gitignore` and **never committed**
+- Secret rotation every 90 days
+- Production secrets accessible only by cluster admin
+- All secret access is audit-logged
+- Development uses `kubectl create secret` for local secrets
 
 <br>
 
@@ -741,49 +905,78 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 <br>
 
-## 📐 Geliştirme Kuralları
+## 📅 Roadmap
 
-### 🌿 Git Workflow
+| Week | Focus | Deliverables |
+|:---:|:---|:---|
+| **1-2** | Setup & Data | Repo structure, dev environment, EHT data download, synthetic data pipeline |
+| **3-4** | Baseline Model | U-Net training, MLflow tracking, evaluation metrics (PSNR/SSIM) |
+| **5-6** | GAN Models | Pix2Pix and ESRGAN training, hyperparameter search with Optuna |
+| **7-8** | SOTA + Serving | Restormer training, ONNX optimization, gRPC inference server |
+| **9-10** | API + Frontend | Go API gateway, React frontend, image upload/download flow |
+| **11** | Infrastructure | K8s deployment, CI/CD pipelines, Prometheus/Grafana monitoring |
+| **12** | Polish & Demo | End-to-end testing, documentation, final presentation |
 
-| Kural | Detay |
+<br>
+
+---
+
+<br>
+
+## 📐 Development Guidelines
+
+### Git Workflow
+
+| Rule | Detail |
 |:---|:---|
-| **Ana branch** | `main` — protected, merge sadece PR ile |
-| **Branch adı** | `feature/<stajyer-adı>/<kısa-açıklama>` |
-| **Review** | Her PR en az 1 review almalı |
-| **PR açıklaması** | Ne yapıldığı + nasıl test edildiği |
+| **Main branch** | `main` — protected, merge via PR only |
+| **Branch naming** | `feature/<intern-name>/<short-description>` |
+| **Review** | Every PR requires at least 1 review |
+| **PR description** | What was done + how it was tested |
 
-### 📝 Commit Convention
+### Commit Convention
 
 ```
-<type>(<scope>): <açıklama>
+<type>(<scope>): <description>
 ```
 
 | Type | Scope |
 |:---|:---|
 | `feat` · `fix` · `refactor` · `docs` · `test` · `ci` · `chore` | `data` · `ml` · `api` · `frontend` · `infra` · `docs` |
 
-**Örnekler:**
+### Code Review
 
-```bash
-feat(data): add FITS parser with astropy
-fix(ml): resolve CUDA OOM in ESRGAN training
-feat(api): implement /enhance endpoint with gRPC client
-docs(ml): add model card for pix2pix v1
-ci(infra): add Docker build caching to GitHub Actions
-```
+- You cannot merge your own PR
+- Does it work? Are there tests? Is documentation updated?
+- Reviews must be completed within 24 hours
 
-### 🔍 Code Review
+### Documentation
 
-- ❌ Kendi PR'ını kendin merge edemezsin
-- ✅ Çalışıyor mu? Test var mı? Dokümantasyon güncellendi mi?
-- ⏰ Review 24 saat içinde yapılmalı
+- Each module must have its own `README.md`
+- Public functions must have docstrings
+- API endpoints documented via Swagger/OpenAPI
+- Architectural decisions recorded as ADRs in `docs/`
 
-### 📖 Dokümantasyon
+<br>
 
-- Her modül kendi `README.md` dosyasına sahip olmalı
-- Public fonksiyonlar docstring ile belgelenmeli
-- API endpoint'leri Swagger/OpenAPI ile otomatik dokümante edilmeli
-- Mimari kararlar `docs/` altında **ADR** formatında tutulmalı
+---
+
+<br>
+
+## 📚 References
+
+### EHT Papers
+- [First M87* Results (Paper I-VI)](https://iopscience.iop.org/journal/2041-8205/page/Focus_on_EHT) — The Astrophysical Journal Letters, 2019
+- [First Sgr A* Results (Paper I-VIII)](https://iopscience.iop.org/journal/2041-8205/page/Focus_on_First_Sgr_A_Results) — The Astrophysical Journal Letters, 2022
+
+### Super-Resolution Models
+- [ESRGAN: Enhanced Super-Resolution GANs](https://arxiv.org/abs/1809.00219) — Wang et al., 2018
+- [Real-ESRGAN](https://arxiv.org/abs/2107.10833) — Wang et al., 2021
+- [Restormer: Efficient Transformer for High-Resolution Image Restoration](https://arxiv.org/abs/2111.09881) — Zamir et al., 2022
+
+### Black Hole ML
+- [Deep Horizon: ML from GRMHD simulations](https://www.aanda.org/articles/aa/full_html/2020/04/aa37014-19/aa37014-19.html) — A&A, 2020
+- [eht-imaging: Interferometric Imaging Library](https://github.com/achael/eht-imaging) — Chael et al.
 
 <br>
 
@@ -795,13 +988,13 @@ ci(infra): add Docker build caching to GitHub Actions
 
 **Built with 🔭 by Octapull Interns**
 
-<sub>Kara deliklerin sırlarını çözmek için derin öğrenme</sub>
+<sub>Deep learning to unlock the secrets of black holes</sub>
 
 <br>
 
 <img src="https://img.shields.io/badge/Made_with-PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/Powered_by-Go-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/Kubernetes-Deployed-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
+<img src="https://img.shields.io/badge/Deployed_on-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=flat-square&logo=react&logoColor=black"/>
 
 </div>
