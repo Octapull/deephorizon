@@ -39,7 +39,7 @@
 
 <br>
 
-[Overview](#-overview) · [Architecture](#-architecture) · [ML Pipeline](#-ml-pipeline) · [Success Criteria](#-success-criteria) · [Tech Stack](#-tech-stack) · [API Endpoints](#-api-endpoints) · [Scripts](#-scripts) · [CI/CD](#-cicd-pipeline) · [K8s Deployment](#-kubernetes-deployment) · [Secrets](#-secret-management) · [Roadmap](#-roadmap) · [References](#-references)
+[Overview](#-overview) · [Architecture](#-architecture) · [ML Pipeline](#-ml-pipeline) · [Success Criteria](#-success-criteria) · [Tech Stack](#-tech-stack) · [API Endpoints](#-api-endpoints) · [Scripts](#-scripts) · [CI/CD](#-cicd-pipeline) · [K8s Deployment](#-kubernetes-deployment) · [Secrets](#-secret-management) · [Roadmap](#-roadmap) · [References](#-references) · [📖 Glossary](docs/SOZLUK.md)
 
 </div>
 
@@ -646,7 +646,7 @@ Owns the user-facing layer and monitoring. Responsible for the React+TypeScript 
 </td>
 <td>
 
-CI/CD, MicroK8s setup, Argo CD bootstrap, Sealed Secrets, and MLflow infrastructure are **co-owned** by Interns 1, 5, and 6 with mentor support. No single intern is dedicated to infra — instead, each squad lead delivers the infra for their own services (Data → Airflow/MinIO, ML → MLflow/Inference, Platform → Ingress/Gateway).
+CI/CD, MicroK8s setup, Argo CD bootstrap, Sealed Secrets, and MLflow infrastructure are **co-owned** by Interns 1, 5, and 6 with mentor support. No single intern is dedicated to infra — instead, each squad lead delivers the infra for their own services (Data → Airflow/MinIO, ML → MLflow/Inference, Platform → NodePort/Gateway + off-cluster NGINX Proxy Manager).
 
 This avoids the bus-factor risk of a single "infra intern" and forces each squad to own its deployment.
 
@@ -724,7 +724,7 @@ deephorizon/
 │   │   ├── app-of-apps.yaml               #   Root Argo CD Application
 │   │   ├── data/                          #   Airflow, MinIO manifests (kustomize)
 │   │   ├── ml/                            #   MLflow, training Job, inference Deployment
-│   │   ├── app/                           #   Go API, React frontend, Ingress
+│   │   ├── app/                           #   Go API + Next.js (NodePort Services; NGINX Proxy Manager handles TLS off-cluster)
 │   │   ├── monitor/                       #   Prometheus, Grafana, Argo CD
 │   │   └── secrets/                       #   SealedSecret manifests (safe to commit)
 │   ├── docker/                            #   Dockerfiles (multi-stage)
@@ -943,7 +943,9 @@ Argo CD watches this repo's `infra/k8s/` directory and auto-syncs on every push 
 
 All services run on **MicroK8s** — a lightweight, single-node Kubernetes distribution ideal for GPU workloads. Deployments are managed by **Argo CD** via GitOps.
 
-> **Setup is intern homework.** This README documents the **target architecture** and the **technologies in play**, not click-by-click install steps. Each squad lead is expected to research and bring up the infra components they own (MicroK8s, GPU operator, Argo CD bootstrap, Sealed Secrets controller, ingress). The official docs for each tool are linked in [References](#-references) — getting through them is part of the learning outcome.
+> **Setup is intern homework.** This README documents the **target architecture** and the **technologies in play**, not click-by-click install steps. Each squad lead is expected to research and bring up the infra components they own (MicroK8s, GPU operator, Argo CD bootstrap, Sealed Secrets controller, host-level NGINX Proxy Manager). The official docs for each tool are linked in [References](#-references) — getting through them is part of the learning outcome.
+>
+> **No cluster Ingress.** We do **not** run a Kubernetes Ingress controller. The server's network constraints push TLS termination and host-based routing to **NGINX Proxy Manager running on the host (outside MicroK8s)**. Services are exposed as `NodePort`; NPM reverse-proxies into them. See the Glossary for details.
 
 ### Cluster Architecture
 
@@ -964,10 +966,11 @@ graph TB
         end
 
         subgraph ns-app ["namespace: deephorizon-app"]
-            api["Go API Gateway\n(Deployment)"]
-            frontend["Next.js Frontend\n(Deployment)"]
-            ingress["Ingress Controller\n(NGINX)"]
+            api["Go API Gateway\n(NodePort Service)"]
+            frontend["Next.js Frontend\n(NodePort Service)"]
         end
+
+        npm["NGINX Proxy Manager\n(host Docker, outside cluster)"]
 
         subgraph ns-monitor ["namespace: deephorizon-monitor"]
             prom["Prometheus\n(StatefulSet)"]
@@ -976,8 +979,8 @@ graph TB
         end
     end
 
-    ingress --> frontend
-    ingress --> api
+    npm --> frontend
+    npm --> api
     api -->|gRPC| inference
     inference --> mlflow
     train --> mlflow
@@ -1001,7 +1004,7 @@ graph TB
 |:---|:---|:---|
 | `deephorizon-data` | Airflow, MinIO | Data pipeline and object storage |
 | `deephorizon-ml` | Training Jobs, MLflow, Inference | Model training, registry, serving |
-| `deephorizon-app` | Go API, Next.js Frontend, Ingress | User-facing services |
+| `deephorizon-app` | Go API, Next.js Frontend (NodePort) | User-facing services. TLS + domain routing live **outside** the cluster in NGINX Proxy Manager (see Glossary). |
 | `deephorizon-monitor` | Prometheus, Grafana, Argo CD | Monitoring and GitOps deployment |
 
 ### GPU Workload Configuration

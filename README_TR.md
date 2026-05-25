@@ -39,7 +39,7 @@
 
 <br>
 
-[Genel Bakış](#-genel-bakış) · [Mimari](#%EF%B8%8F-mimari) · [ML Hattı](#-ml-hattı) · [Başarı Kriterleri](#-başarı-kriterleri) · [Teknoloji](#-teknoloji-yığını) · [API Uç Noktaları](#-api-uç-noktaları) · [Scriptler](#-scriptler) · [CI/CD](#-cicd-hattı) · [K8s Dağıtımı](#%EF%B8%8F-kubernetes-dağıtımı) · [Secret Yönetimi](#-gizli-anahtar-yönetimi) · [Yol Haritası](#-yol-haritası) · [Kaynaklar](#-referanslar)
+[Genel Bakış](#-genel-bakış) · [Mimari](#%EF%B8%8F-mimari) · [ML Hattı](#-ml-hattı) · [Başarı Kriterleri](#-başarı-kriterleri) · [Teknoloji](#-teknoloji-yığını) · [API Uç Noktaları](#-api-uç-noktaları) · [Scriptler](#-scriptler) · [CI/CD](#-cicd-hattı) · [K8s Dağıtımı](#%EF%B8%8F-kubernetes-dağıtımı) · [Secret Yönetimi](#-gizli-anahtar-yönetimi) · [Yol Haritası](#-yol-haritası) · [Kaynaklar](#-referanslar) · [📖 Sözlük](docs/SOZLUK.md)
 
 </div>
 
@@ -50,6 +50,8 @@
 <br>
 
 ## 🔭 Genel Bakış
+
+> 👋 **Stajyer için:** İlk gün **mutlaka** [docs/SOZLUK.md](docs/SOZLUK.md)'yi aç. README boyunca karşına çıkan "proto, gRPC, Sealed Secrets, kustomize, GRMHD, RRDB" gibi her terim orada açıklanmış.
 
 Radyo teleskop dizileri (EHT vb.) tarafından yakalanan kara delik görüntüleri ciddi bozulmalardan muzdariptir: seyrek UV-düzlemi örneklemesi, atmosferik faz bozulması, termal gürültü ve kırınıma bağlı çözünürlük sınırı. Bu proje, bu bozulmuş gözlemlerden fiziksel olarak tutarlı, yüksek çözünürlüklü görüntüleri yeniden oluşturmak için derin öğrenme tabanlı **süper-çözünürlük** ve **gürültü giderme** tekniklerini uygulamaktadır.
 
@@ -646,7 +648,7 @@ Kullanıcıya yönelik katman ve izlemenin sahibidir. React+TypeScript SPA, gör
 </td>
 <td>
 
-CI/CD, MicroK8s kurulumu, Argo CD bootstrap, Sealed Secrets ve MLflow altyapısı **Stajyer 1, 5 ve 6** tarafından mentor desteği ile **ortak sahiplenilir**. Tek bir stajyer altyapıya adanmaz — bunun yerine her squad lideri kendi servislerinin altyapısını teslim eder (Data → Airflow/MinIO, ML → MLflow/Çıkarım, Platform → Ingress/Gateway).
+CI/CD, MicroK8s kurulumu, Argo CD bootstrap, Sealed Secrets ve MLflow altyapısı **Stajyer 1, 5 ve 6** tarafından mentor desteği ile **ortak sahiplenilir**. Tek bir stajyer altyapıya adanmaz — bunun yerine her squad lideri kendi servislerinin altyapısını teslim eder (Data → Airflow/MinIO, ML → MLflow/Çıkarım, Platform → NodePort/Gateway + cluster dışı NGINX Proxy Manager).
 
 Bu, tek bir "altyapı stajyeri" bus-factor riskini ortadan kaldırır ve her squad'ı kendi dağıtımını sahiplenmeye zorlar.
 
@@ -724,7 +726,7 @@ deephorizon/
 │   │   ├── app-of-apps.yaml               #   Kök Argo CD Application
 │   │   ├── data/                          #   Airflow, MinIO manifest'leri (kustomize)
 │   │   ├── ml/                            #   MLflow, eğitim Job, çıkarım Deployment
-│   │   ├── app/                           #   Go API, React ön yüz, Ingress
+│   │   ├── app/                           #   Go API + Next.js (NodePort Service'leri; TLS host'taki NGINX Proxy Manager'da)
 │   │   ├── monitor/                       #   Prometheus, Grafana, Argo CD
 │   │   └── secrets/                       #   SealedSecret manifest'leri (commit güvenli)
 │   ├── docker/                            #   Dockerfile'lar (çok aşamalı)
@@ -943,7 +945,9 @@ Argo CD bu repo'nun `infra/k8s/` dizinini izler ve `main`'e her push'ta otomatik
 
 Tüm servisler **MicroK8s** üzerinde çalışır — GPU iş yükleri için ideal, hafif, tek node Kubernetes dağıtımı. Dağıtımlar **Argo CD** ile GitOps üzerinden yönetilir.
 
-> **Kurulum stajyer ödevidir.** Bu README **hedef mimariyi** ve **kullanılacak teknolojileri** belgeler, adım adım kurulum talimatlarını değil. Her squad lideri sahibi olduğu altyapı bileşenlerini (MicroK8s, GPU operator, Argo CD bootstrap, Sealed Secrets controller, ingress) araştırıp ayağa kaldırır. Her aracın resmi dokümantasyonu [Kaynaklar](#-referanslar) bölümünde linklidir — bunları okumak öğrenme çıktısının bir parçasıdır.
+> **Kurulum stajyer ödevidir.** Bu README **hedef mimariyi** ve **kullanılacak teknolojileri** belgeler, adım adım kurulum talimatlarını değil. Her squad lideri sahibi olduğu altyapı bileşenlerini (MicroK8s, GPU operator, Argo CD bootstrap, Sealed Secrets controller, host seviyesi NGINX Proxy Manager) araştırıp ayağa kaldırır. Her aracın resmi dokümantasyonu [Kaynaklar](#-referanslar) bölümünde linklidir — bunları okumak öğrenme çıktısının bir parçasıdır.
+>
+> **Cluster Ingress yok.** Kubernetes Ingress controller **çalıştırmıyoruz**. Sunucunun network kısıtları nedeniyle TLS sonlandırma ve domain bazlı yönlendirme **MicroK8s dışında, host üzerinde Docker container olarak çalışan NGINX Proxy Manager**'da yapılır. Service'ler `NodePort` olarak açılır; NPM bu portlara reverse proxy yapar. Detay için [Sözlük](docs/SOZLUK.md)'e bak.
 
 ### Küme Mimarisi
 
@@ -964,10 +968,11 @@ graph TB
         end
 
         subgraph ns-app ["namespace: deephorizon-app"]
-            api["Go API Geçidi\n(Deployment)"]
-            frontend["Next.js Ön Yüz\n(Deployment)"]
-            ingress["Ingress Controller\n(NGINX)"]
+            api["Go API Geçidi\n(NodePort Service)"]
+            frontend["Next.js Ön Yüz\n(NodePort Service)"]
         end
+
+        npm["NGINX Proxy Manager\n(host Docker, cluster dışı)"]
 
         subgraph ns-monitor ["namespace: deephorizon-monitor"]
             prom["Prometheus\n(StatefulSet)"]
@@ -976,8 +981,8 @@ graph TB
         end
     end
 
-    ingress --> frontend
-    ingress --> api
+    npm --> frontend
+    npm --> api
     api -->|gRPC| inference
     inference --> mlflow
     train --> mlflow
@@ -1001,7 +1006,7 @@ graph TB
 |:---|:---|:---|
 | `deephorizon-data` | Airflow, MinIO | Veri hattı ve nesne depolama |
 | `deephorizon-ml` | Eğitim İşleri, MLflow, Çıkarım | Model eğitimi, kayıt defteri, sunum |
-| `deephorizon-app` | Go API, Next.js Ön Yüz, Ingress | Kullanıcıya yönelik servisler |
+| `deephorizon-app` | Go API, Next.js Ön Yüz (NodePort) | Kullanıcıya yönelik servisler. TLS + domain yönlendirmesi cluster **dışında** NGINX Proxy Manager'da ([Sözlük](docs/SOZLUK.md)'e bak). |
 | `deephorizon-monitor` | Prometheus, Grafana, Argo CD | İzleme ve GitOps dağıtımı |
 
 ### GPU İş Yükü Yapılandırması

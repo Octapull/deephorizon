@@ -10,7 +10,7 @@ All deployment artifacts: Kubernetes manifests, Dockerfiles, and a local dev com
 |:---|:---|:---|
 | `k8s/data/` | Data squad | Airflow, MinIO manifests (kustomize) |
 | `k8s/ml/` | ML squad | MLflow, training Job, inference Deployment |
-| `k8s/app/` | Platform squad | Go API, React frontend, Ingress |
+| `k8s/app/` | Platform squad | Go API + Next.js frontend (NodePort Service only — no cluster Ingress; NGINX Proxy Manager handles TLS on the host) |
 | `k8s/monitor/` | Platform squad | Prometheus, Grafana, Argo CD |
 | `k8s/secrets/` | Squad leads | SealedSecret manifests (safe to commit) |
 | `k8s/app-of-apps.yaml` | Platform | Root Argo CD Application that tracks the four above |
