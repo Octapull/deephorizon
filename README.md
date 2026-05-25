@@ -670,7 +670,7 @@ deephorizon/
 ├── README_TR.md                           # Turkish documentation ✅
 ├── .gitignore                             # ✅
 │
-├── requirements/                          # Split Python deps (avoid astropy ↔ torch conflicts) 🚧
+├── requirements/                          # Per-container Python deps (local dev uses pyproject extras) 🚧
 │   ├── base.txt                           #   numpy, scipy, opencv, scikit-image
 │   ├── data.txt                           #   astropy, eht-imaging, dvc, great-expectations
 │   ├── ml.txt                             #   torch, torchvision, mlflow, optuna, lpips
@@ -771,14 +771,23 @@ cd deephorizon
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Install dependencies (data + ml extras; pick the subset you need)
-pip install -r requirements/base.txt -r requirements/data.txt -r requirements/ml.txt
+# Install dependencies — single venv, both extras (recommended for dev)
+uv sync --extra data --extra ml --extra dev
 
-# Or with uv (recommended)
-uv sync --extra data --extra ml
+# Or with pip (extras still composable in one env)
+pip install -e ".[data,ml,dev]"
 ```
 
-> **Why split requirements?** `eht-imaging` pins older `numpy`/`scipy` versions that conflict with current `torch` wheels. Installing them in the same environment is fragile. The `data` and `ml` extras are designed to live in **separate virtualenvs** in production (data pipeline pods vs training pods).
+> **Why both extras in one venv?** Verified on 2026-05-25 with Python 3.13.13 + uv 0.11: `data` (ehtim 1.2.10, astropy 7.2) and `ml` (torch 2.12, numpy 2.4) coexist cleanly. Earlier docs warned of an ehtim ↔ torch conflict — uv's resolver finds a numpy 2.x that satisfies both.
+>
+> **The split still matters for containers, not local dev.** Production inference images should NOT ship `ehtim`/`astropy` (200+ MB of unused code). Each Dockerfile installs only its slice: training pod → `[ml]`, data pipeline pod → `[data]`, inference pod → `[serving]`. See `infra/docker/`.
+
+### Known caveats (ehtim on Python 3.13)
+
+- **NFFT missing.** ehtim warns `No NFFT installed!` — some interferometric features need it. If Stajyer 2 hits this, install via `brew install nfft` then `pip install pynfft2`.
+- **`pkg_resources` deprecation.** ehtim still uses `pkg_resources`; setuptools may drop it post-2025-11-30. Currently pinned-safe with `setuptools<82`. Long-term: upstream ehtim PR or fork.
+- **No `ehtim.__version__`.** Use `importlib.metadata.version("ehtim")` for logging.
+- **SyntaxWarnings.** ehtim has a handful of `\m`/`\c` escape sequence warnings on 3.13. Cosmetic now; may become `SyntaxError` on 3.14.
 
 <br>
 

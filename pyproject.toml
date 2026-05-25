@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.13"
 authors = [{ name = "Octapull Interns" }]
 
+# Verified on 2026-05-25: `uv sync --extra data --extra ml --extra dev`
+# on Python 3.13.13 resolves to numpy 2.4 + torch 2.12 + ehtim 1.2.10
+# in a single venv. See README "Known caveats" for ehtim quirks.
+
 [project.optional-dependencies]
 data = [
   "ehtim>=1.2.10",

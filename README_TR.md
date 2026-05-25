@@ -670,7 +670,7 @@ deephorizon/
 ├── README_TR.md                           # Türkçe dokümantasyon ✅
 ├── .gitignore                             # ✅
 │
-├── requirements/                          # Bölünmüş Python bağımlılıkları (astropy ↔ torch çatışmasını önler) 🚧
+├── requirements/                          # Container başına Python bağımlılıkları (yerel dev pyproject extras kullanır) 🚧
 │   ├── base.txt                           #   numpy, scipy, opencv, scikit-image
 │   ├── data.txt                           #   astropy, eht-imaging, dvc, great-expectations
 │   ├── ml.txt                             #   torch, torchvision, mlflow, optuna, lpips
@@ -771,14 +771,23 @@ cd deephorizon
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Bağımlılıkları yükle (data + ml; ihtiyacın olan altkümeyi seç)
-pip install -r requirements/base.txt -r requirements/data.txt -r requirements/ml.txt
+# Bağımlılıkları yükle — tek venv, iki extras (geliştirme için önerilen)
+uv sync --extra data --extra ml --extra dev
 
-# Veya uv ile (önerilen)
-uv sync --extra data --extra ml
+# Veya pip ile (extras hâlâ aynı ortamda birleşebilir)
+pip install -e ".[data,ml,dev]"
 ```
 
-> **Neden bölündü?** `eht-imaging` eski `numpy`/`scipy` sürümlerini pinler ve güncel `torch` wheels'leri ile çatışır. Aynı ortamda kurmak kırılgan. `data` ve `ml` extras production'da **ayrı virtualenv**'lerde yaşayacak şekilde tasarlandı (veri hattı pod'ları vs eğitim pod'ları).
+> **Neden tek venv'de iki extras?** 2026-05-25'te Python 3.13.13 + uv 0.11 ile doğrulandı: `data` (ehtim 1.2.10, astropy 7.2) ve `ml` (torch 2.12, numpy 2.4) tek venv'de sorunsuz yaşıyor. Eski uyarımız "ehtim ↔ torch çatışır" idi — uv'nin resolver'ı her ikisini de tatmin eden numpy 2.x'i buluyor.
+>
+> **Bölünme hâlâ container'lar için önemli, yerel geliştirme için değil.** Production inference imajları `ehtim`/`astropy`'yi taşımamalı (200+ MB kullanılmayan kod). Her Dockerfile sadece kendi diliminden kurar: training pod → `[ml]`, veri pipeline pod → `[data]`, inference pod → `[serving]`. `infra/docker/`'a bak.
+
+### Bilinen sorunlar (Python 3.13'te ehtim)
+
+- **NFFT eksik.** ehtim `No NFFT installed!` uyarısı veriyor — bazı interferometrik özellikler buna ihtiyaç duyar. Stajyer 2 takılırsa `brew install nfft` sonra `pip install pynfft2` ile kur.
+- **`pkg_resources` deprecation.** ehtim hâlâ `pkg_resources` kullanıyor; setuptools 2025-11-30+ kaldırabilir. Şu an `setuptools<82` ile güvenli. Uzun vadeli: upstream ehtim PR'ı veya fork.
+- **`ehtim.__version__` yok.** Loglama için `importlib.metadata.version("ehtim")` kullan.
+- **SyntaxWarning'ler.** ehtim'in birkaç `\m`/`\c` escape sequence'i 3.13'te uyarı çıkartır. Şimdilik kozmetik; 3.14'te `SyntaxError` olabilir.
 
 <br>
 
