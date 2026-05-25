@@ -1,3 +1,6 @@
+CI disabled until Week 1 bootstrap completes (proto stubs generated,
+initial Python package committed). Uncomment when ready.
+
 name: ci
 
 on:
