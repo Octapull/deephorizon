@@ -3,7 +3,7 @@ name = "deephorizon"
 version = "0.0.1"
 description = "Deep learning super-resolution and denoising for black hole images from radio telescope arrays"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"  # 3.14 turns ehtim's SyntaxWarnings into SyntaxError — revisit upstream first.
 authors = [{ name = "Octapull Interns" }]
 
 # Verified on 2026-05-25: `uv sync --extra data --extra ml --extra dev`
@@ -16,6 +16,9 @@ data = [
   "astropy>=7.0.0",
   "dvc>=3.59.0",
   "great-expectations>=1.4.0",
+  # ehtim imports pkg_resources, which setuptools may drop in 82+.
+  # Hold the line until ehtim upstream migrates to importlib.resources.
+  "setuptools<82",
 ]
 ml = [
   "torch>=2.6.0",
