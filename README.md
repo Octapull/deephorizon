@@ -25,7 +25,8 @@
 <img src="https://img.shields.io/badge/python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white"/>
 <img src="https://img.shields.io/badge/pytorch-2.6+-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/go-1.24+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/react-19+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/next.js-15+-000000?style=flat-square&logo=next.js&logoColor=white"/>
+<img src="https://img.shields.io/badge/tailwind-3-38B2AC?style=flat-square&logo=tailwindcss&logoColor=white"/>
 <img src="https://img.shields.io/badge/microk8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/argo--cd-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
 <img src="https://img.shields.io/badge/docker-2496ED?style=flat-square&logo=docker&logoColor=white"/>
@@ -52,7 +53,7 @@
 
 Black hole images captured by radio telescope arrays (EHT, etc.) suffer from severe degradation: sparse UV-plane sampling, atmospheric phase corruption, thermal noise, and diffraction-limited resolution. This project applies deep learning-based **super-resolution** and **denoising** techniques to reconstruct physically consistent, high-resolution images from these corrupted observations.
 
-Beyond model development, the project builds an end-to-end **MLOps infrastructure**, **data pipeline**, **Go API gateway**, and **React frontend**.
+Beyond model development, the project builds an end-to-end **MLOps infrastructure**, **data pipeline**, **Go API gateway**, and **Next.js frontend**.
 
 <br>
 
@@ -342,9 +343,9 @@ Hyperparameter search: Optuna (20 trials per MUST phase, 50 for TARGET/STRETCH)
 
 | | Technology | Description |
 |:---|:---|:---|
-| 🖼️ | **React 19+ (TypeScript)** | SPA frontend application |
-| 🎨 | **Tailwind CSS** | Utility-first CSS framework |
-| 🔄 | **Zustand / React Query** | State management and server cache |
+| ⚛️ | **Next.js 15 (App Router, TypeScript)** | Full-stack React framework — internal tool, no SEO, no SSR data fetching |
+| 🎨 | **Tailwind CSS 3** | Utility-first CSS framework (v3 — v4 plugin churn avoided) |
+| 🔄 | **Zustand / TanStack Query** | Client state + server cache |
 | 🌐 | **Three.js / D3.js** | Interactive black hole visualization |
 
 ### API Gateway
@@ -619,8 +620,9 @@ Owns the user-facing layer and monitoring. Responsible for the React+TypeScript 
 <details>
 <summary>Research Topics</summary>
 
-- React 19 + TypeScript SPA architecture
-- Zustand / React Query for state and server cache
+- Next.js 15 App Router + TypeScript
+- Zustand / TanStack Query for client state and server cache
+- Tailwind CSS 3 — utility-first styling, design tokens via `tailwind.config.ts`
 - Three.js / D3.js for interactive image visualization
 - File upload UX (progress, chunking, cancellation)
 - Prometheus client library, custom metric definition
@@ -702,9 +704,12 @@ deephorizon/
 │   │   ├── internal/handlers/             #   /enhance, /models, /health
 │   │   ├── internal/grpc_client/          #   inference service client
 │   │   └── api/openapi.yaml               #   generated OpenAPI 3.0
-│   └── frontend/                          # Owned by Intern 7
-│       ├── src/                           #   React 19 + TypeScript
-│       ├── public/
+│   └── frontend/                          # Owned by Intern 7 — Next.js 15 + Tailwind 3
+│       ├── app/                           #   App Router pages, layouts, route handlers
+│       ├── components/                    #   Reusable UI primitives
+│       ├── lib/                           #   API client (typed against Go gateway), utils
+│       ├── public/                        #   Static assets
+│       ├── tailwind.config.ts
 │       └── package.json
 │
 ├── pipelines/                             # Airflow DAGs ⏳
@@ -960,7 +965,7 @@ graph TB
 
         subgraph ns-app ["namespace: deephorizon-app"]
             api["Go API Gateway\n(Deployment)"]
-            frontend["React Frontend\n(Deployment)"]
+            frontend["Next.js Frontend\n(Deployment)"]
             ingress["Ingress Controller\n(NGINX)"]
         end
 
@@ -996,7 +1001,7 @@ graph TB
 |:---|:---|:---|
 | `deephorizon-data` | Airflow, MinIO | Data pipeline and object storage |
 | `deephorizon-ml` | Training Jobs, MLflow, Inference | Model training, registry, serving |
-| `deephorizon-app` | Go API, React Frontend, Ingress | User-facing services |
+| `deephorizon-app` | Go API, Next.js Frontend, Ingress | User-facing services |
 | `deephorizon-monitor` | Prometheus, Grafana, Argo CD | Monitoring and GitOps deployment |
 
 ### GPU Workload Configuration
@@ -1204,6 +1209,6 @@ Concrete install / encrypt commands are intentionally omitted — see the Sealed
 <img src="https://img.shields.io/badge/Powered_by-Go-00ADD8?style=flat-square&logo=go&logoColor=white"/>
 <img src="https://img.shields.io/badge/Deployed_on-MicroK8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/GitOps-Argo_CD-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
-<img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/Frontend-Next.js-000000?style=flat-square&logo=next.js&logoColor=white"/>
 
 </div>

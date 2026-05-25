@@ -25,7 +25,8 @@
 <img src="https://img.shields.io/badge/python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white"/>
 <img src="https://img.shields.io/badge/pytorch-2.6+-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/go-1.24+-00ADD8?style=flat-square&logo=go&logoColor=white"/>
-<img src="https://img.shields.io/badge/react-19+-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/next.js-15+-000000?style=flat-square&logo=next.js&logoColor=white"/>
+<img src="https://img.shields.io/badge/tailwind-3-38B2AC?style=flat-square&logo=tailwindcss&logoColor=white"/>
 <img src="https://img.shields.io/badge/microk8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/argo--cd-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
 <img src="https://img.shields.io/badge/docker-2496ED?style=flat-square&logo=docker&logoColor=white"/>
@@ -52,7 +53,7 @@
 
 Radyo teleskop dizileri (EHT vb.) tarafından yakalanan kara delik görüntüleri ciddi bozulmalardan muzdariptir: seyrek UV-düzlemi örneklemesi, atmosferik faz bozulması, termal gürültü ve kırınıma bağlı çözünürlük sınırı. Bu proje, bu bozulmuş gözlemlerden fiziksel olarak tutarlı, yüksek çözünürlüklü görüntüleri yeniden oluşturmak için derin öğrenme tabanlı **süper-çözünürlük** ve **gürültü giderme** tekniklerini uygulamaktadır.
 
-Model geliştirmenin ötesinde, proje uçtan uca bir **MLOps altyapısı**, **veri hattı**, **Go API geçidi** ve **React ön yüz** inşa etmektedir.
+Model geliştirmenin ötesinde, proje uçtan uca bir **MLOps altyapısı**, **veri hattı**, **Go API geçidi** ve **Next.js ön yüz** inşa etmektedir.
 
 <br>
 
@@ -342,9 +343,9 @@ Hiperparametre arama: Optuna (ZORUNLU aşamalar için 20, HEDEF/GENİŞLEME içi
 
 | | Teknoloji | Açıklama |
 |:---|:---|:---|
-| 🖼️ | **React 19+ (TypeScript)** | SPA ön yüz uygulaması |
-| 🎨 | **Tailwind CSS** | Yardımcı sınıf öncelikli CSS çerçevesi |
-| 🔄 | **Zustand / React Query** | Durum yönetimi ve sunucu önbelleği |
+| ⚛️ | **Next.js 15 (App Router, TypeScript)** | Tam yığın React framework — iç araç, SEO yok, SSR data fetching yok |
+| 🎨 | **Tailwind CSS 3** | Yardımcı sınıf öncelikli CSS çerçevesi (v4 plugin kararsızlığından kaçındık) |
+| 🔄 | **Zustand / TanStack Query** | İstemci durumu + sunucu önbelleği |
 | 🌐 | **Three.js / D3.js** | Etkileşimli kara delik görselleştirmesi |
 
 ### API Geçidi
@@ -619,8 +620,9 @@ Kullanıcıya yönelik katman ve izlemenin sahibidir. React+TypeScript SPA, gör
 <details>
 <summary>Araştırma Konuları</summary>
 
-- React 19 + TypeScript SPA mimarisi
-- Durum ve sunucu önbelleği için Zustand / React Query
+- Next.js 15 App Router + TypeScript
+- İstemci durumu ve sunucu önbelleği için Zustand / TanStack Query
+- Tailwind CSS 3 — utility-first stil, `tailwind.config.ts` ile tasarım token'ları
 - Etkileşimli görüntü görselleştirme için Three.js / D3.js
 - Dosya yükleme UX (ilerleme, parçalama, iptal)
 - Prometheus istemci kütüphanesi, özel metrik tanımı
@@ -702,9 +704,12 @@ deephorizon/
 │   │   ├── internal/handlers/             #   /enhance, /models, /health
 │   │   ├── internal/grpc_client/          #   çıkarım servisi istemcisi
 │   │   └── api/openapi.yaml               #   üretilmiş OpenAPI 3.0
-│   └── frontend/                          # Stajyer 7 sahibi
-│       ├── src/                           #   React 19 + TypeScript
-│       ├── public/
+│   └── frontend/                          # Stajyer 7 sahibi — Next.js 15 + Tailwind 3
+│       ├── app/                           #   App Router sayfaları, layout'lar, route handler'lar
+│       ├── components/                    #   Tekrar kullanılabilir UI primitive'leri
+│       ├── lib/                           #   API istemci (Go gateway için typed), util'ler
+│       ├── public/                        #   Statik varlıklar
+│       ├── tailwind.config.ts
 │       └── package.json
 │
 ├── pipelines/                             # Airflow DAG'ları ⏳
@@ -960,7 +965,7 @@ graph TB
 
         subgraph ns-app ["namespace: deephorizon-app"]
             api["Go API Geçidi\n(Deployment)"]
-            frontend["React Ön Yüz\n(Deployment)"]
+            frontend["Next.js Ön Yüz\n(Deployment)"]
             ingress["Ingress Controller\n(NGINX)"]
         end
 
@@ -996,7 +1001,7 @@ graph TB
 |:---|:---|:---|
 | `deephorizon-data` | Airflow, MinIO | Veri hattı ve nesne depolama |
 | `deephorizon-ml` | Eğitim İşleri, MLflow, Çıkarım | Model eğitimi, kayıt defteri, sunum |
-| `deephorizon-app` | Go API, React Ön Yüz, Ingress | Kullanıcıya yönelik servisler |
+| `deephorizon-app` | Go API, Next.js Ön Yüz, Ingress | Kullanıcıya yönelik servisler |
 | `deephorizon-monitor` | Prometheus, Grafana, Argo CD | İzleme ve GitOps dağıtımı |
 
 ### GPU İş Yükü Yapılandırması
@@ -1204,6 +1209,6 @@ Net install / encrypt komutları bilinçli olarak verilmedi — Sealed Secrets d
 <img src="https://img.shields.io/badge/Powered_by-Go-00ADD8?style=flat-square&logo=go&logoColor=white"/>
 <img src="https://img.shields.io/badge/Deployed_on-MicroK8s-326CE5?style=flat-square&logo=kubernetes&logoColor=white"/>
 <img src="https://img.shields.io/badge/GitOps-Argo_CD-EF7B4D?style=flat-square&logo=argo&logoColor=white"/>
-<img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=flat-square&logo=react&logoColor=black"/>
+<img src="https://img.shields.io/badge/Frontend-Next.js-000000?style=flat-square&logo=next.js&logoColor=white"/>
 
 </div>
