@@ -1,0 +1,16 @@
+version: v2
+plugins:
+  # Go stubs for the API gateway
+  - remote: buf.build/protocolbuffers/go
+    out: ../services/api/internal/pb
+    opt:
+      - paths=source_relative
+  - remote: buf.build/grpc/go
+    out: ../services/api/internal/pb
+    opt:
+      - paths=source_relative
+  # Python stubs for the inference server
+  - remote: buf.build/protocolbuffers/python
+    out: ../services/ml/inference_server/pb
+  - remote: buf.build/grpc/python
+    out: ../services/ml/inference_server/pb

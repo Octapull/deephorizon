@@ -1,0 +1,10 @@
+# DeepHorizon — data pipeline dependencies
+# Install on top of base.txt. Keep isolated from ml.txt — ehtim/astropy
+# pin older numpy/scipy that fight torch wheels.
+
+-r base.txt
+
+ehtim>=1.2.10
+astropy>=7.0.0
+dvc>=3.59.0
+great-expectations>=1.4.0

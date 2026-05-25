@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package deephorizon.v1;
+
+option go_package = "github.com/Octapull/deephorizon/services/api/internal/pb/deephorizon/v1;deephorizonv1";
+
+// Raw image payload exchanged between the Go gateway and the Python
+// inference server. Format is intentionally simple — the gateway is
+// responsible for decoding multipart uploads into bytes.
+message ImagePayload {
+  bytes data = 1;             // raw bytes, format-aware via `mime_type`
+  string mime_type = 2;       // "image/png" | "image/fits" | "application/octet-stream"
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+// Image quality metrics returned alongside an enhanced image.
+message Metrics {
+  double psnr = 1;
+  double ssim = 2;
+  double lpips = 3;
+  uint32 inference_time_ms = 4;
+}
+
+// Async job lifecycle states. Sync /enhance requests jump straight to
+// COMPLETED; batch requests transition QUEUED -> RUNNING -> COMPLETED.
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_QUEUED = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_COMPLETED = 3;
+  JOB_STATUS_FAILED = 4;
+}

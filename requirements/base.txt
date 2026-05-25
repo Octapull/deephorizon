@@ -1,0 +1,13 @@
+# DeepHorizon — base dependencies
+# Shared across data, ML, and serving environments.
+
+numpy>=2.2.0
+scipy>=1.15.0
+matplotlib>=3.10.0
+Pillow>=11.1.0
+scikit-image>=0.25.0
+opencv-python-headless>=4.11.0
+h5py>=3.13.0
+pyyaml>=6.0.2
+tqdm>=4.67.0
+requests>=2.32.0

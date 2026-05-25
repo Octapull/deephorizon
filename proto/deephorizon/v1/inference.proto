@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package deephorizon.v1;
+
+import "deephorizon/v1/common.proto";
+
+option go_package = "github.com/Octapull/deephorizon/services/api/internal/pb/deephorizon/v1;deephorizonv1";
+
+// InferenceService is the contract between the Go API gateway and the
+// Python model server. All RPCs are unary; streaming is reserved for v2.
+service InferenceService {
+  rpc Enhance(EnhanceRequest) returns (EnhanceResponse);
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message EnhanceRequest {
+  ImagePayload image = 1;
+  string model_id = 2;        // e.g. "restormer-v1", "esrgan-v2"
+  uint32 scale_factor = 3;    // 1, 2, or 4
+  string output_format = 4;   // "png" | "fits"
+}
+
+message EnhanceResponse {
+  ImagePayload image = 1;
+  Metrics metrics = 2;
+  string model_id = 3;
+  JobStatus status = 4;
+}
+
+message ModelInfo {
+  string id = 1;              // unique identifier
+  string architecture = 2;    // "unet" | "pix2pix" | "esrgan" | "restormer"
+  string version = 3;
+  Metrics validation_metrics = 4;
+}
+
+message ListModelsRequest {}
+
+message ListModelsResponse {
+  repeated ModelInfo models = 1;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool ok = 1;
+  string detail = 2;
+  bool gpu_available = 3;
+}

@@ -1,0 +1,56 @@
+[project]
+name = "deephorizon"
+version = "0.0.1"
+description = "Deep learning super-resolution and denoising for black hole images from radio telescope arrays"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [{ name = "Octapull Interns" }]
+
+[project.optional-dependencies]
+data = [
+  "ehtim>=1.2.10",
+  "astropy>=7.0.0",
+  "dvc>=3.59.0",
+  "great-expectations>=1.4.0",
+]
+ml = [
+  "torch>=2.6.0",
+  "torchvision>=0.21.0",
+  "torchmetrics>=1.6.0",
+  "lpips>=0.1.4",
+  "mlflow>=2.21.0",
+  "optuna>=4.3.0",
+]
+serving = [
+  "torch>=2.6.0",
+  "onnxruntime-gpu>=1.20.0",
+  "grpcio>=1.70.0",
+  "grpcio-tools>=1.70.0",
+  "protobuf>=5.29.0",
+  "prometheus-client>=0.22.0",
+  "evidently>=0.6.0",
+]
+dev = [
+  "ruff>=0.8.0",
+  "mypy>=1.13.0",
+  "pytest>=8.3.0",
+  "pytest-cov>=6.0.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["services", "scripts"]
+addopts = "-q --cov --cov-report=term-missing --cov-fail-under=80"

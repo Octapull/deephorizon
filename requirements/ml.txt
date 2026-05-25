@@ -1,0 +1,11 @@
+# DeepHorizon — model training dependencies
+# Install on top of base.txt. Keep isolated from data.txt.
+
+-r base.txt
+
+torch>=2.6.0
+torchvision>=0.21.0
+torchmetrics>=1.6.0
+lpips>=0.1.4
+mlflow>=2.21.0
+optuna>=4.3.0
