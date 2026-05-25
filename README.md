@@ -58,7 +58,7 @@ Beyond model development, the project builds an end-to-end **MLOps infrastructur
 
 <table>
 <tr>
-<td align="center"><b>Team</b><br><code>5 Interns</code></td>
+<td align="center"><b>Team</b><br><code>7 Interns</code></td>
 <td align="center"><b>Duration</b><br><code>12 Weeks</code></td>
 <td align="center"><b>GPU</b><br><code>1x NVIDIA L40S (48 GB)</code></td>
 </tr>
@@ -238,17 +238,29 @@ Training follows a progressive strategy — start simple, increase complexity:
 | **Adversarial** | 0.01 | GAN loss for sharp, realistic outputs |
 | **Physics-informed** | 0.05 | Ring structure consistency, flux conservation |
 
+> **Physics-Informed Loss (formal definition).** Let `I_hat` be the predicted image and `I_gt` the ground truth. The physics loss combines three terms:
+>
+> ```
+> L_phys = lambda_flux * | sum(I_hat) - sum(I_gt) | / sum(I_gt)        # flux conservation
+>        + lambda_ring * | D_ring(I_hat) - D_ring(I_gt) |               # ring diameter (uas)
+>        + lambda_sym  * | A(I_hat) - A(I_gt) |                          # asymmetry ratio
+> ```
+>
+> `D_ring(.)` extracts ring diameter via radial brightness profile peak detection, `A(.)` is the brightness asymmetry ratio (max/min along the ring). Defaults: `lambda_flux = 0.5`, `lambda_ring = 0.3`, `lambda_sym = 0.2`. Defined in `services/ml/losses/physics.py`.
+
 ### Training Strategy
 
 ```
-Phase 1: U-Net with L1 loss only (warm-up, ~50 epochs)
-Phase 2: Pix2Pix with L1 + adversarial (~100 epochs)
-Phase 3: ESRGAN with L1 + perceptual + adversarial (~200 epochs)
-Phase 4: Restormer with full loss suite (~300 epochs)
+Phase 1: U-Net with L1 loss only (warm-up, ~50 epochs)         [MUST]
+Phase 2: Pix2Pix with L1 + adversarial (~100 epochs)            [MUST]
+Phase 3: ESRGAN with L1 + perceptual + adversarial (~200 epochs) [TARGET]
+Phase 4: Restormer with full loss suite (~300 epochs)            [STRETCH]
 
 All phases: mixed precision (torch.amp), gradient accumulation (4 steps)
-Hyperparameter search: Optuna (50 trials per phase)
+Hyperparameter search: Optuna (20 trials per MUST phase, 50 for TARGET/STRETCH)
 ```
+
+> **Scope note.** Phases 1–3 are committed deliverables; Phase 4 (Restormer) is a stretch goal contingent on Phase 3 hitting the SSIM target by Week 8. A single L40S running 300-epoch Restormer + 50-trial Optuna sweep alone consumes ~2 weeks of GPU time, so Phase 4 enters the schedule only after a Week 8 go/no-go review.
 
 <br>
 
@@ -266,6 +278,8 @@ Hyperparameter search: Optuna (50 trials per phase)
 | **SSIM** | >= 0.90 | ~0.35 | Structural Similarity Index |
 | **LPIPS** | <= 0.10 | ~0.55 | Learned Perceptual Image Patch Similarity (lower = better) |
 | **FID** | <= 30 | ~180 | Frechet Inception Distance (lower = better) |
+
+> **Baseline measurement.** "Baseline (Dirty Image)" numbers are measured on the synthetic `medium` degradation split (PSF 5.0 + 5% noise + 2x downsample, 2,500 pairs) using bicubic upsampling as the no-ML reference. Real EHT data has no ground truth and is excluded from these metrics. Reproduce via `scripts/eval_baseline.py` (to be added in Week 3).
 
 ### Physics Consistency
 
@@ -410,31 +424,36 @@ Hyperparameter search: Optuna (50 trials per phase)
 
 ## 👥 Team Structure
 
+7 interns, organized into **3 squads**: Data, ML, Platform. Each intern owns one primary area but pairs with at least one other intern for cross-review.
+
 <br>
 
 <table>
 <tr>
-<td align="center" width="20%">
+<td align="center" width="22%">
 
 ### Intern 1
 **Data Engineer**
+*Squad: Data*
 
 </td>
 <td>
 
-Owns the data pipeline. Responsible for FITS/HDF5 parsing, synthetic data generation, DVC versioning, and Great Expectations validation suite.
+Owns the data pipeline. Responsible for FITS/HDF5 parsing, EHT data ingestion, DVC versioning, and Great Expectations validation suite.
 
 <details>
 <summary>Research Topics</summary>
 
 - FITS file format and `astropy` I/O
-- `eht-imaging` GRMHD simulation image generation
-- PSF modeling and synthetic degradation pipeline design
+- EHT UVFITS visibility data structure and calibration
 - Airflow DAG authoring and scheduling
 - DVC remote storage configuration (MinIO backend)
 - Great Expectations profiling and expectation suites
+- Data cataloging and lineage tracking
 
 </details>
+
+**Pairs with:** Intern 2 (degradation pipeline contract)
 
 </td>
 </tr>
@@ -443,25 +462,27 @@ Owns the data pipeline. Responsible for FITS/HDF5 parsing, synthetic data genera
 <td align="center">
 
 ### Intern 2
-**ML Engineer**
-*Model Development*
+**Simulation & Synthetic Data**
+*Squad: Data*
 
 </td>
 <td>
 
-Owns model architecture and training. Responsible for all model development from baseline to SOTA, training loops, and hyperparameter optimization.
+Owns the synthetic data generator. Responsible for `eht-imaging` GRMHD simulations, PSF modeling, the degradation pipeline, and the 10K training-pair generator.
 
 <details>
 <summary>Research Topics</summary>
 
-- Super-resolution literature: `SRCNN → EDSR → ESRGAN → Real-ESRGAN → Restormer`
-- GAN training dynamics (mode collapse, training instability) and solutions
-- Physics-informed neural networks and custom loss function design
-- Progressive training strategies
-- Mixed precision training (`torch.amp`) and gradient accumulation
-- Optuna hyperparameter search strategies
+- `eht-imaging` library, GRMHD source models
+- Physical PSF / dirty-beam modeling for VLBI arrays
+- Realistic noise injection (thermal + atmospheric phase)
+- Crescent / ring / double-ring source modeling
+- Data augmentation strategies for radio astronomy
+- Class-balance and stratified sampling for degradation levels
 
 </details>
+
+**Pairs with:** Intern 1 (data schema), Intern 3 (training data spec)
 
 </td>
 </tr>
@@ -470,25 +491,27 @@ Owns model architecture and training. Responsible for all model development from
 <td align="center">
 
 ### Intern 3
-**ML Engineer**
-*Evaluation & Optimization*
+**ML Engineer — Baseline & GAN**
+*Squad: ML*
 
 </td>
 <td>
 
-Owns model quality and inference performance. Responsible for metric implementation, benchmark suite, model optimization (ONNX, TensorRT), and gRPC inference service.
+Owns Phase 1–2 models. Responsible for U-Net baseline, Pix2Pix conditional GAN, training loop scaffolding, and the shared `services/ml/` training package.
 
 <details>
 <summary>Research Topics</summary>
 
-- Image quality metrics: `PSNR`, `SSIM`, `LPIPS`, `FID` — mathematical foundations
-- Physics consistency metric design (PSF consistency check)
-- ONNX export and TensorRT model optimization
-- gRPC + protobuf Python inference service development
-- Model profiling and latency analysis (`torch.profiler`)
-- MLflow model registry integration and artifact management
+- U-Net architecture for image-to-image translation
+- Conditional GAN (Pix2Pix) training dynamics
+- Mode collapse, gradient penalty, spectral normalization
+- Mixed precision training (`torch.amp`) and gradient accumulation
+- Training loop abstractions and configuration management (Hydra)
+- MLflow experiment tracking integration
 
 </details>
+
+**Pairs with:** Intern 4 (loss + eval contract)
 
 </td>
 </tr>
@@ -497,25 +520,27 @@ Owns model quality and inference performance. Responsible for metric implementat
 <td align="center">
 
 ### Intern 4
-**MLOps Engineer**
+**ML Engineer — SOTA & Physics Loss**
+*Squad: ML*
 
 </td>
 <td>
 
-Owns automation and infrastructure. Responsible for CI/CD pipelines, Docker environments, Airflow setup, MLflow configuration, and K8s deployment.
+Owns Phase 3–4 models and physics-informed loss. Responsible for ESRGAN, Restormer (stretch), the physics-informed loss module, and Optuna hyperparameter search.
 
 <details>
 <summary>Research Topics</summary>
 
-- Docker multi-stage builds and image optimization
-- Docker Compose multi-service orchestration
-- GitHub Actions workflow design (matrix builds, caching, secrets)
-- MLflow Tracking Server setup (backend store + artifact store)
-- Airflow setup and DAG best practices
-- MinIO setup and S3-compatible bucket management
-- Kubernetes GPU scheduling and Sealed Secrets
+- ESRGAN: RRDB blocks, relativistic discriminator
+- Restormer transformer-based architecture, MDTA / GDFN blocks
+- Physics-informed neural networks for astrophysics
+- Custom loss function design (flux conservation, ring geometry)
+- Optuna search strategies (TPE, multi-objective)
+- VGG perceptual loss configuration
 
 </details>
+
+**Pairs with:** Intern 3 (shared training code), Intern 5 (evaluation hand-off)
 
 </td>
 </tr>
@@ -524,26 +549,104 @@ Owns automation and infrastructure. Responsible for CI/CD pipelines, Docker envi
 <td align="center">
 
 ### Intern 5
-**Frontend & API Gateway**
+**ML Engineer — Evaluation & Inference**
+*Squad: ML*
 
 </td>
 <td>
 
-Owns all user-facing layers. Responsible for Go API gateway, React frontend, Prometheus/Grafana monitoring, and Evidently AI drift detection.
+Owns model quality and inference serving. Responsible for the metric suite (PSNR/SSIM/LPIPS/FID + physics), ONNX/TensorRT optimization, and the Python gRPC inference service.
+
+<details>
+<summary>Research Topics</summary>
+
+- Image quality metrics: `PSNR`, `SSIM`, `LPIPS`, `FID` math
+- Physics consistency metrics: ring diameter extraction, flux integrals
+- ONNX export, ONNX Runtime, TensorRT optimization
+- gRPC + protobuf Python service development (`grpcio`)
+- Model profiling (`torch.profiler`, Nsight)
+- MLflow model registry and staging→production promotion gate
+
+</details>
+
+**Pairs with:** Intern 4 (model hand-off), Intern 6 (proto contract)
+
+</td>
+</tr>
+
+<tr>
+<td align="center">
+
+### Intern 6
+**Backend & API Gateway**
+*Squad: Platform*
+
+</td>
+<td>
+
+Owns the Go API gateway and the shared protobuf contract. Responsible for REST endpoints, gRPC client to the inference service, async job handling, and OpenAPI documentation.
 
 <details>
 <summary>Research Topics</summary>
 
 - Go REST API development (Gin / Echo framework)
-- Go gRPC client implementation and connection pooling
-- Protobuf schema definition (`.proto` files)
-- React + TypeScript SPA development
-- File upload/download handling (multipart form, streaming)
-- Prometheus client library custom metric definition
-- Grafana dashboard provisioning (JSON model)
+- Protobuf schema design (`buf` tooling, breaking-change detection)
+- Go gRPC client, connection pooling, retries with backoff
+- Async job queue patterns (Redis / NATS)
+- File upload streaming (multipart form, S3 multipart upload)
+- OpenAPI 3.0 generation from Go (`swaggo/swag`)
+- Request validation (`go-playground/validator`)
+
+</details>
+
+**Pairs with:** Intern 5 (proto schema owner), Intern 7 (API ↔ frontend contract)
+
+</td>
+</tr>
+
+<tr>
+<td align="center">
+
+### Intern 7
+**Frontend & Observability**
+*Squad: Platform*
+
+</td>
+<td>
+
+Owns the user-facing layer and monitoring. Responsible for the React+TypeScript SPA, image upload/visualization, Prometheus/Grafana dashboards, and Evidently drift reports.
+
+<details>
+<summary>Research Topics</summary>
+
+- React 19 + TypeScript SPA architecture
+- Zustand / React Query for state and server cache
+- Three.js / D3.js for interactive image visualization
+- File upload UX (progress, chunking, cancellation)
+- Prometheus client library, custom metric definition
+- Grafana dashboard provisioning (JSON model, as-code)
 - Evidently AI data drift and model performance reporting
 
 </details>
+
+**Pairs with:** Intern 6 (API contract)
+
+</td>
+</tr>
+
+<tr>
+<td align="center">
+
+### Floating Role
+**MLOps / Platform**
+*Shared across squad leads*
+
+</td>
+<td>
+
+CI/CD, MicroK8s setup, Argo CD bootstrap, Sealed Secrets, and MLflow infrastructure are **co-owned** by Interns 1, 5, and 6 with mentor support. No single intern is dedicated to infra — instead, each squad lead delivers the infra for their own services (Data → Airflow/MinIO, ML → MLflow/Inference, Platform → Ingress/Gateway).
+
+This avoids the bus-factor risk of a single "infra intern" and forces each squad to own its deployment.
 
 </td>
 </tr>
@@ -557,22 +660,89 @@ Owns all user-facing layers. Responsible for Go API gateway, React frontend, Pro
 
 ## 📁 Repo Structure
 
+> **Status legend:** ✅ exists · 🚧 scaffolded in Week 1–2 · ⏳ planned (later weeks).
+> The structure below is the **target layout**; only items marked ✅ are currently in the repo.
+
 ```
 deephorizon/
 │
-├── README.md                              # English documentation
-├── README_TR.md                           # Turkish documentation
-├── requirements.txt                       # Python dependencies
-├── .gitignore
+├── README.md                              # English documentation ✅
+├── README_TR.md                           # Turkish documentation ✅
+├── .gitignore                             # ✅
+│
+├── requirements/                          # Split Python deps (avoid astropy ↔ torch conflicts) 🚧
+│   ├── base.txt                           #   numpy, scipy, opencv, scikit-image
+│   ├── data.txt                           #   astropy, eht-imaging, dvc, great-expectations
+│   ├── ml.txt                             #   torch, torchvision, mlflow, optuna, lpips
+│   └── serving.txt                        #   grpcio, onnxruntime, prometheus-client
+│
+├── pyproject.toml                         # uv / poetry config, ruff, mypy 🚧
+├── go.mod / go.sum                        # Go module (services/api) ⏳
 │
 ├── assets/
-│   └── sample_degradation.png
+│   └── sample_degradation.png             # ✅
 │
-└── scripts/
+├── proto/                                 # SHARED contract between Go and Python 🚧
+│   ├── buf.yaml                           #   buf lint + breaking-change detection
+│   ├── buf.gen.yaml                       #   generates Go + Python stubs
+│   └── deephorizon/v1/
+│       ├── inference.proto                #   Enhance(), Health(), ListModels()
+│       └── common.proto                   #   ImagePayload, Metrics, JobStatus
+│
+├── services/                              # All deployable services live here ⏳
+│   ├── ml/                                # Owned by Interns 3, 4, 5
+│   │   ├── models/                        #   unet/, pix2pix/, esrgan/, restormer/
+│   │   ├── losses/                        #   physics.py, perceptual.py, gan.py
+│   │   ├── data/                          #   datasets, dataloaders, transforms
+│   │   ├── training/                      #   train_loop.py, optuna_runner.py
+│   │   ├── evaluation/                    #   metrics.py, benchmark.py
+│   │   └── inference_server/              #   gRPC server impl
+│   ├── api/                               # Owned by Intern 6 (Go gateway)
+│   │   ├── cmd/server/                    #   main.go
+│   │   ├── internal/handlers/             #   /enhance, /models, /health
+│   │   ├── internal/grpc_client/          #   inference service client
+│   │   └── api/openapi.yaml               #   generated OpenAPI 3.0
+│   └── frontend/                          # Owned by Intern 7
+│       ├── src/                           #   React 19 + TypeScript
+│       ├── public/
+│       └── package.json
+│
+├── pipelines/                             # Airflow DAGs ⏳
+│   ├── dags/
+│   │   ├── eht_ingest.py
+│   │   ├── synthetic_generation.py
+│   │   └── training_data_build.py
+│   └── plugins/
+│
+├── infra/                                 # All deployment artifacts ⏳
+│   ├── k8s/
+│   │   ├── app-of-apps.yaml               #   Root Argo CD Application
+│   │   ├── data/                          #   Airflow, MinIO manifests (kustomize)
+│   │   ├── ml/                            #   MLflow, training Job, inference Deployment
+│   │   ├── app/                           #   Go API, React frontend, Ingress
+│   │   ├── monitor/                       #   Prometheus, Grafana, Argo CD
+│   │   └── secrets/                       #   SealedSecret manifests (safe to commit)
+│   ├── docker/                            #   Dockerfiles (multi-stage)
+│   │   ├── ml.Dockerfile
+│   │   ├── api.Dockerfile
+│   │   └── frontend.Dockerfile
+│   └── docker-compose.dev.yaml            #   Local dev stack (MinIO, MLflow, Postgres)
+│
+├── .github/workflows/                     # CI ⏳
+│   ├── ci.yml                             #   lint, test, type-check
+│   ├── build.yml                          #   docker build + push
+│   └── train.yml                          #   manual/scheduled GPU training
+│
+├── docs/                                  # ADRs and module docs ⏳
+│   ├── adr/                               #   architecture decision records
+│   └── runbooks/                          #   on-call playbooks
+│
+└── scripts/                               # Standalone scripts (kept thin) ✅
     ├── download_eht_data.py               # EHT UVFITS downloader (7 datasets, 88 files)
-    ├── generate_synthetic_data.py          # eht-imaging synthetic generator (128x128)
-    ├── generate_training_data.py           # Training data generator (512x512, 10K pairs)
-    └── visualize_samples.py               # Data visualization (PNG output)
+    ├── generate_synthetic_data.py         # eht-imaging synthetic generator (128x128)
+    ├── generate_training_data.py          # Training data generator (512x512, 10K pairs)
+    ├── visualize_samples.py               # Data visualization (PNG output)
+    └── eval_baseline.py                   # No-ML baseline metrics (bicubic) ⏳
 ```
 
 <br>
@@ -601,9 +771,14 @@ cd deephorizon
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (data + ml extras; pick the subset you need)
+pip install -r requirements/base.txt -r requirements/data.txt -r requirements/ml.txt
+
+# Or with uv (recommended)
+uv sync --extra data --extra ml
 ```
+
+> **Why split requirements?** `eht-imaging` pins older `numpy`/`scipy` versions that conflict with current `torch` wheels. Installing them in the same environment is fragile. The `data` and `ml` extras are designed to live in **separate virtualenvs** in production (data pipeline pods vs training pods).
 
 <br>
 
@@ -742,15 +917,7 @@ flowchart LR
 | `deephorizon-app` | `infra/k8s/app/` | `deephorizon-app` | Auto-sync |
 | `deephorizon-monitor` | `infra/k8s/monitor/` | `deephorizon-monitor` | Auto-sync |
 
-```bash
-# Argo CD watches this repo's infra/k8s/ directory
-# When K8s manifests change → Argo CD auto-syncs to MicroK8s
-# No manual kubectl apply needed for deployments
-
-# Check sync status
-argocd app list
-argocd app get deephorizon-app
-```
+Argo CD watches this repo's `infra/k8s/` directory and auto-syncs on every push to `main`. No manual `kubectl apply` is part of the deploy flow — if a manifest changes in Git, it changes in the cluster.
 
 <br>
 
@@ -762,25 +929,7 @@ argocd app get deephorizon-app
 
 All services run on **MicroK8s** — a lightweight, single-node Kubernetes distribution ideal for GPU workloads. Deployments are managed by **Argo CD** via GitOps.
 
-### MicroK8s Setup
-
-```bash
-# Install MicroK8s
-sudo snap install microk8s --classic --channel=1.33
-
-# Enable required addons
-microk8s enable dns storage ingress gpu metallb:10.64.140.43-10.64.140.49
-
-# Enable Argo CD
-microk8s enable community
-microk8s enable argocd
-
-# Alias for convenience
-alias kubectl='microk8s kubectl'
-
-# Verify GPU is detected
-microk8s kubectl get nodes -o json | jq '.items[].status.allocatable["nvidia.com/gpu"]'
-```
+> **Setup is intern homework.** This README documents the **target architecture** and the **technologies in play**, not click-by-click install steps. Each squad lead is expected to research and bring up the infra components they own (MicroK8s, GPU operator, Argo CD bootstrap, Sealed Secrets controller, ingress). The official docs for each tool are linked in [References](#-references) — getting through them is part of the learning outcome.
 
 ### Cluster Architecture
 
@@ -867,43 +1016,18 @@ resources:
     cpu: "8"
 ```
 
-### Argo CD Application Setup
+> **GPU contention policy.** We have **one L40S** but both the training `Job` and the `inference` `Deployment` request `nvidia.com/gpu: 1`. To avoid one starving the other:
+>
+> 1. **Default mode** — inference Deployment runs with `replicas: 1`. Training Jobs use `nodeSelector: { workload: training }` and a `PriorityClass: low-priority`; the inference pod is scaled down to 0 before a training run starts (handled by the `train.yml` workflow).
+> 2. **Concurrent mode (optional, Week 11+)** — enable NVIDIA MIG (Multi-Instance GPU) on the L40S to partition the card into a `1g.12gb` slice for inference and a `3g.36gb` slice for training. Configured via the `gpu-operator` Helm chart, `migStrategy: mixed`.
+>
+> Pick **default mode** for the 12-week window — MIG adds setup cost without clear benefit while the inference QPS is low.
 
-```bash
-# Register the repo as an Argo CD application
-argocd app create deephorizon-app \
-  --repo https://github.com/Octapull/deephorizon.git \
-  --path infra/k8s/app \
-  --dest-server https://kubernetes.default.svc \
-  --dest-namespace deephorizon-app \
-  --sync-policy automated \
-  --auto-prune \
-  --self-heal
+### Argo CD Strategy
 
-# Check sync status
-argocd app list
-argocd app get deephorizon-app
+We use the **app-of-apps** pattern: a single root `Application` (`infra/k8s/app-of-apps.yaml`) tracks all four squad-level Applications. Adding a new service = adding one manifest, not running `argocd app create`. Auto-sync is enabled on every git push to `main`.
 
-# Manual sync (if needed)
-argocd app sync deephorizon-app
-```
-
-### Common Commands
-
-```bash
-# Check GPU availability
-microk8s kubectl describe node | grep -A5 "nvidia.com/gpu"
-
-# Launch training job manually
-microk8s kubectl apply -f infra/k8s/ml/training-job.yaml
-
-# Watch all DeepHorizon pods
-microk8s kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
-
-# View Argo CD dashboard
-microk8s kubectl port-forward svc/argocd-server -n argocd 8443:443
-# Open https://localhost:8443
-```
+Technologies the team will use here: **Argo CD CLI**, **`kustomize`** for per-environment overlays, **Helm** for third-party charts (Sealed Secrets, gpu-operator).
 
 <br>
 
@@ -938,23 +1062,15 @@ Developer → kubeseal encrypt → SealedSecret (committed to Git)
 | `grafana-admin` | `deephorizon-monitor` | Grafana admin password |
 | `github-registry` | `deephorizon-app` | Container image pull secret |
 
-### Sealed Secrets Usage
+### Tooling
 
-```bash
-# Install Sealed Secrets controller
-helm install sealed-secrets sealed-secrets/sealed-secrets \
-  -n kube-system
+The team will work with:
 
-# Create and encrypt a secret
-kubectl create secret generic minio-credentials \
-  --from-literal=access-key=CHANGEME \
-  --from-literal=secret-key=CHANGEME \
-  --dry-run=client -o yaml | \
-  kubeseal --format yaml > infra/k8s/secrets/minio-sealed.yaml
+- **Sealed Secrets** (Bitnami) — controller installed via Helm; `kubeseal` CLI used locally to encrypt manifests before commit.
+- **`kubectl create secret --dry-run=client`** to draft plain Secrets that get piped into `kubeseal`.
+- **Helm** for installing the controller.
 
-# Safe to commit (encrypted)
-git add infra/k8s/secrets/minio-sealed.yaml
-```
+Concrete install / encrypt commands are intentionally omitted — see the Sealed Secrets docs in [References](#-references).
 
 ### Rules
 
@@ -972,15 +1088,22 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 ## 📅 Roadmap
 
-| Week | Focus | Deliverables |
-|:---:|:---|:---|
-| **1-2** | Setup & Data | Repo structure, dev environment, EHT data download, synthetic data pipeline |
-| **3-4** | Baseline Model | U-Net training, MLflow tracking, evaluation metrics (PSNR/SSIM) |
-| **5-6** | GAN Models | Pix2Pix and ESRGAN training, hyperparameter search with Optuna |
-| **7-8** | SOTA + Serving | Restormer training, ONNX optimization, gRPC inference server |
-| **9-10** | API + Frontend | Go API gateway, React frontend, image upload/download flow |
-| **11** | Infrastructure | K8s deployment, CI/CD pipelines, Prometheus/Grafana monitoring |
-| **12** | Polish & Demo | End-to-end testing, documentation, final presentation |
+| Week | Focus | Deliverables | Squad Lead |
+|:---:|:---|:---|:---|
+| **1** | Bootstrap | Repo scaffolding (`services/`, `proto/`, `infra/`), `pyproject.toml`, CI skeleton, `proto/` v1 frozen | All |
+| **2** | Data + Proto contract | EHT download, synthetic generator (128x128), training pairs (512x512), `inference.proto` reviewed and merged | Data, Platform |
+| **3** | Baseline + Eval harness | U-Net training, MLflow up, metric suite (PSNR/SSIM/LPIPS/FID), `eval_baseline.py` | ML |
+| **4** | GAN Phase | Pix2Pix training, physics loss v1, Optuna runner | ML |
+| **5** | ESRGAN | ESRGAN training (Phase 3 [TARGET]), perceptual loss tuning | ML |
+| **6** | Inference + Go API skeleton | ONNX export, gRPC inference server, Go gateway `/health` + `/enhance` (mock) | ML, Platform |
+| **7** | End-to-end wire-up | Real gRPC call from Go → Python, async job flow, OpenAPI spec | Platform |
+| **8** | **Go/no-go gate** + Frontend | Phase 3 metrics review → decide on Restormer (Phase 4 [STRETCH]). React SPA MVP | All |
+| **9** | Restormer (if go) / Polish (if no-go) | Restormer training OR ESRGAN refinement + frontend feature-complete | ML, Platform |
+| **10** | K8s + Argo CD | MicroK8s deploy, Sealed Secrets, app-of-apps bootstrap, training Job manifest | All squads |
+| **11** | Observability + Hardening | Prometheus metrics, Grafana dashboards, Evidently drift report, load test | Platform |
+| **12** | Demo | E2E test, runbooks, ADRs, final presentation | All |
+
+> **Week 8 go/no-go gate.** If Phase 3 (ESRGAN) hits **SSIM ≥ 0.85** on the `medium` split by Friday of Week 8, the team commits to Phase 4 (Restormer) in Weeks 9–10. Otherwise, Weeks 9–10 are spent hardening ESRGAN and the serving stack. This decision is made jointly by ML squad and project mentor.
 
 <br>
 
@@ -1043,6 +1166,17 @@ git add infra/k8s/secrets/minio-sealed.yaml
 - [Deep Horizon: ML from GRMHD simulations](https://www.aanda.org/articles/aa/full_html/2020/04/aa37014-19/aa37014-19.html) — A&A, 2020
 - [eht-imaging: Interferometric Imaging Library](https://github.com/achael/eht-imaging) — Chael et al.
 
+### Infrastructure & MLOps Docs (intern self-study)
+- [MicroK8s docs](https://microk8s.io/docs) — install, addons, GPU enablement
+- [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/index.html) — device plugin, MIG configuration
+- [Argo CD docs](https://argo-cd.readthedocs.io/) — bootstrap, app-of-apps pattern
+- [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) — controller install and `kubeseal` usage
+- [Kustomize](https://kustomize.io/) — overlay-based manifest management
+- [MLflow docs](https://mlflow.org/docs/latest/index.html) — tracking server, model registry
+- [Apache Airflow](https://airflow.apache.org/docs/) — DAG authoring, providers
+- [DVC docs](https://dvc.org/doc) — data versioning with S3-compatible remotes
+- [buf docs](https://buf.build/docs) — protobuf linting and breaking-change detection
+
 <br>
 
 ---
@@ -1051,7 +1185,7 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 <div align="center">
 
-**Built with 🔭 by Octapull Interns**
+**Built with 🔭 by Octapull Interns — 7 builders, 3 squads, 1 black hole**
 
 <sub>Deep learning to unlock the secrets of black holes</sub>
 

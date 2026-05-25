@@ -58,7 +58,7 @@ Model gelistirmenin otesinde, proje uctan uca bir **MLOps altyapisi**, **veri ha
 
 <table>
 <tr>
-<td align="center"><b>Takim</b><br><code>5 Stajyer</code></td>
+<td align="center"><b>Takim</b><br><code>7 Stajyer</code></td>
 <td align="center"><b>Sure</b><br><code>12 Hafta</code></td>
 <td align="center"><b>GPU</b><br><code>1x NVIDIA L40S (48 GB)</code></td>
 </tr>
@@ -238,17 +238,29 @@ Egitim ilerlemeli bir strateji izler — basitten basla, karmasikligi artir:
 | **Cekismel** | 0.01 | Keskin, gercekci ciktilar icin GAN kaybi |
 | **Fizik bilgili** | 0.05 | Halka yapisi tutarliligi, aki korunumu |
 
+> **Fizik bilgili kayip (formel tanim).** `I_hat` tahmin edilen goruntu, `I_gt` temel gerceklik olsun. Fizik kaybi uc terimi birlestirir:
+>
+> ```
+> L_phys = lambda_flux * | sum(I_hat) - sum(I_gt) | / sum(I_gt)        # aki korunumu
+>        + lambda_ring * | D_ring(I_hat) - D_ring(I_gt) |               # halka capi (uas)
+>        + lambda_sym  * | A(I_hat) - A(I_gt) |                          # asimetri orani
+> ```
+>
+> `D_ring(.)` radyal parlaklik profilinin tepe noktasindan halka capini cikartir, `A(.)` halka boyunca parlaklik asimetri oranidir (max/min). Varsayilanlar: `lambda_flux = 0.5`, `lambda_ring = 0.3`, `lambda_sym = 0.2`. `services/ml/losses/physics.py` icinde tanimlanir.
+
 ### Egitim Stratejisi
 
 ```
-Asama 1: Yalnizca L1 kayipli U-Net (isinma, ~50 epoch)
-Asama 2: L1 + cekismel kayipli Pix2Pix (~100 epoch)
-Asama 3: L1 + algisal + cekismel kayipli ESRGAN (~200 epoch)
-Asama 4: Tam kayip takimli Restormer (~300 epoch)
+Asama 1: Yalnizca L1 kayipli U-Net (isinma, ~50 epoch)               [ZORUNLU]
+Asama 2: L1 + cekismel kayipli Pix2Pix (~100 epoch)                   [ZORUNLU]
+Asama 3: L1 + algisal + cekismel kayipli ESRGAN (~200 epoch)          [HEDEF]
+Asama 4: Tam kayip takimli Restormer (~300 epoch)                      [GENISLEME]
 
 Tum asamalar: karisik hassasiyet (torch.amp), gradyan biriktirme (4 adim)
-Hiperparametre arama: Optuna (asama basina 50 deneme)
+Hiperparametre arama: Optuna (ZORUNLU asamalar icin 20, HEDEF/GENISLEME icin 50 deneme)
 ```
+
+> **Kapsam notu.** Asama 1–3 taahhut edilen ciktilar; Asama 4 (Restormer) yalnizca Asama 3'un 8. hafta sonuna kadar SSIM hedefini tutturmasi durumunda devreye girer. Tek bir L40S'te 300-epoch Restormer + 50-deneme Optuna arama tek basina ~2 hafta GPU zamani harcar; bu yuzden Asama 4 sadece 8. haftadaki go/no-go incelemesinden sonra planlanir.
 
 <br>
 
@@ -266,6 +278,8 @@ Hiperparametre arama: Optuna (asama basina 50 deneme)
 | **SSIM** | >= 0.90 | ~0.35 | Yapisal Benzerlik Indeksi |
 | **LPIPS** | <= 0.10 | ~0.55 | Ogrenilmis Algisal Goruntu Yama Benzerligi (dusuk = daha iyi) |
 | **FID** | <= 30 | ~180 | Frechet Baslangic Mesafesi (dusuk = daha iyi) |
+
+> **Temel olcumu.** "Temel (Kirli Goruntu)" rakamlari sentetik `medium` bozulma kumesinde (PSF 5.0 + %5 gurultu + 2x alt ornekleme, 2.500 cift) bikubik upsample ile no-ML referans olarak olculmustur. Gercek EHT verisinde temel gerceklik olmadigi icin bu metrikler dahil edilmemistir. `scripts/eval_baseline.py` ile reprodukse edilir (3. hafta eklenecek).
 
 ### Fizik Tutarliligi
 
@@ -410,31 +424,36 @@ Hiperparametre arama: Optuna (asama basina 50 deneme)
 
 ## 👥 Takim Yapisi
 
+7 stajyer, **3 squad** halinde organize edilir: Data, ML, Platform. Her stajyer bir birincil alana sahiptir ancak capraz inceleme icin en az bir diger stajyer ile eslesir.
+
 <br>
 
 <table>
 <tr>
-<td align="center" width="20%">
+<td align="center" width="22%">
 
 ### Stajyer 1
 **Veri Muhendisi**
+*Squad: Data*
 
 </td>
 <td>
 
-Veri hattinin sahibidir. FITS/HDF5 ayristirma, sentetik veri uretimi, DVC versiyonlama ve Great Expectations dogrulama paketinden sorumludur.
+Veri hattinin sahibidir. FITS/HDF5 ayristirma, EHT veri alma, DVC versiyonlama ve Great Expectations dogrulama paketinden sorumludur.
 
 <details>
 <summary>Arastirma Konulari</summary>
 
 - FITS dosya formati ve `astropy` I/O
-- `eht-imaging` GRMHD simulasyon goruntu uretimi
-- PSF modelleme ve sentetik bozulma hatti tasarimi
+- EHT UVFITS gorunurluk verisi yapisi ve kalibrasyon
 - Airflow DAG yazimi ve zamanlama
 - DVC uzak depolama yapilandirmasi (MinIO arka ucu)
 - Great Expectations profilleme ve beklenti paketleri
+- Veri katalogu ve soy zinciri takibi
 
 </details>
+
+**Eslesir:** Stajyer 2 (bozulma hatti kontrati)
 
 </td>
 </tr>
@@ -443,25 +462,27 @@ Veri hattinin sahibidir. FITS/HDF5 ayristirma, sentetik veri uretimi, DVC versiy
 <td align="center">
 
 ### Stajyer 2
-**ML Muhendisi**
-*Model Gelistirme*
+**Simulasyon ve Sentetik Veri**
+*Squad: Data*
 
 </td>
 <td>
 
-Model mimarisi ve egitimin sahibidir. Temel modelden SOTA'ya kadar tum model gelistirme, egitim dongusu ve hiperparametre optimizasyonundan sorumludur.
+Sentetik veri ureticisinin sahibidir. `eht-imaging` GRMHD simulasyonlari, PSF modelleme, bozulma hatti ve 10K egitim cifti ureticisinden sorumludur.
 
 <details>
 <summary>Arastirma Konulari</summary>
 
-- Super-cozunurluk literaturu: `SRCNN → EDSR → ESRGAN → Real-ESRGAN → Restormer`
-- GAN egitim dinamikleri (mod cokusu, egitim kararsizligi) ve cozumleri
-- Fizik bilgili sinir aglari ve ozel kayip fonksiyonu tasarimi
-- Ilerlemeli egitim stratejileri
-- Karisik hassasiyet egitimi (`torch.amp`) ve gradyan biriktirme
-- Optuna hiperparametre arama stratejileri
+- `eht-imaging` kutuphanesi, GRMHD kaynak modelleri
+- VLBI dizileri icin fiziksel PSF / kirli huzme modelleme
+- Gercekci gurultu enjeksiyonu (termal + atmosferik faz)
+- Crescent / ring / double-ring kaynak modelleme
+- Radyo astronomi icin veri artirma stratejileri
+- Bozulma seviyeleri icin sinif dengesi ve katmanli ornekleme
 
 </details>
+
+**Eslesir:** Stajyer 1 (veri semasi), Stajyer 3 (egitim verisi sartnamesi)
 
 </td>
 </tr>
@@ -470,25 +491,27 @@ Model mimarisi ve egitimin sahibidir. Temel modelden SOTA'ya kadar tum model gel
 <td align="center">
 
 ### Stajyer 3
-**ML Muhendisi**
-*Degerlendirme ve Optimizasyon*
+**ML Muhendisi — Temel ve GAN**
+*Squad: ML*
 
 </td>
 <td>
 
-Model kalitesi ve cikarim performansinin sahibidir. Metrik uygulamasi, karsilastirma paketi, model optimizasyonu (ONNX, TensorRT) ve gRPC cikarim servisinden sorumludur.
+Asama 1–2 modellerinin sahibidir. U-Net temel, Pix2Pix kosullu GAN, egitim dongusu iskeleti ve paylasilan `services/ml/` egitim paketinden sorumludur.
 
 <details>
 <summary>Arastirma Konulari</summary>
 
-- Goruntu kalitesi metrikleri: `PSNR`, `SSIM`, `LPIPS`, `FID` — matematiksel temeller
-- Fizik tutarliligi metrik tasarimi (PSF tutarlilik kontrolu)
-- ONNX disari aktarma ve TensorRT model optimizasyonu
-- gRPC + protobuf Python cikarim servisi gelistirme
-- Model profilleme ve gecikme analizi (`torch.profiler`)
-- MLflow model kayit defteri entegrasyonu ve artifakt yonetimi
+- Goruntu-goruntu cevirisi icin U-Net mimarisi
+- Kosullu GAN (Pix2Pix) egitim dinamikleri
+- Mod cokusu, gradyan cezasi, spektral normalizasyon
+- Karisik hassasiyet egitimi (`torch.amp`) ve gradyan biriktirme
+- Egitim dongusu soyutlamalari ve yapilandirma yonetimi (Hydra)
+- MLflow deney takibi entegrasyonu
 
 </details>
+
+**Eslesir:** Stajyer 4 (kayip + degerlendirme kontrati)
 
 </td>
 </tr>
@@ -497,25 +520,27 @@ Model kalitesi ve cikarim performansinin sahibidir. Metrik uygulamasi, karsilast
 <td align="center">
 
 ### Stajyer 4
-**MLOps Muhendisi**
+**ML Muhendisi — SOTA ve Fizik Kaybi**
+*Squad: ML*
 
 </td>
 <td>
 
-Otomasyon ve altyapinin sahibidir. CI/CD hatlari, Docker ortamlari, Airflow kurulumu, MLflow yapilandirmasi ve K8s dagitimidan sorumludur.
+Asama 3–4 modellerinin ve fizik bilgili kaybin sahibidir. ESRGAN, Restormer (genisleme), fizik bilgili kayip modulu ve Optuna hiperparametre aramasindan sorumludur.
 
 <details>
 <summary>Arastirma Konulari</summary>
 
-- Docker cok asamali build ve goruntu optimizasyonu
-- Docker Compose cok servisli orkestrasyon
-- GitHub Actions is akisi tasarimi (matris build, onbellekleme, gizli anahtarlar)
-- MLflow Tracking Server kurulumu (arka uc depolama + artifakt deposu)
-- Airflow kurulumu ve DAG en iyi uygulamalari
-- MinIO kurulumu ve S3 uyumlu bucket yonetimi
-- Kubernetes GPU zamanlama ve Sealed Secrets
+- ESRGAN: RRDB bloklari, goreceli ayirt edici
+- Restormer transformer mimarisi, MDTA / GDFN bloklari
+- Astrofizik icin fizik bilgili sinir aglari
+- Ozel kayip tasarimi (aki korunumu, halka geometrisi)
+- Optuna arama stratejileri (TPE, cok amacli)
+- VGG algisal kayip yapilandirmasi
 
 </details>
+
+**Eslesir:** Stajyer 3 (ortak egitim kodu), Stajyer 5 (degerlendirme devri)
 
 </td>
 </tr>
@@ -524,26 +549,104 @@ Otomasyon ve altyapinin sahibidir. CI/CD hatlari, Docker ortamlari, Airflow kuru
 <td align="center">
 
 ### Stajyer 5
-**On Yuz ve API Gecidi**
+**ML Muhendisi — Degerlendirme ve Cikarim**
+*Squad: ML*
 
 </td>
 <td>
 
-Tum kullaniciya yonelik katmanlarin sahibidir. Go API gecidi, React on yuz, Prometheus/Grafana izleme ve Evidently AI kayma tespitinden sorumludur.
+Model kalitesi ve cikarim sunumunun sahibidir. Metrik paketi (PSNR/SSIM/LPIPS/FID + fizik), ONNX/TensorRT optimizasyonu ve Python gRPC cikarim servisinden sorumludur.
+
+<details>
+<summary>Arastirma Konulari</summary>
+
+- Goruntu kalitesi metrikleri: `PSNR`, `SSIM`, `LPIPS`, `FID` matematigi
+- Fizik tutarlilik metrikleri: halka capi cikartma, aki integralleri
+- ONNX disari aktarma, ONNX Runtime, TensorRT optimizasyonu
+- gRPC + protobuf Python servis gelistirme (`grpcio`)
+- Model profilleme (`torch.profiler`, Nsight)
+- MLflow model kayit defteri ve staging→production terfi kapisi
+
+</details>
+
+**Eslesir:** Stajyer 4 (model devri), Stajyer 6 (proto kontrati)
+
+</td>
+</tr>
+
+<tr>
+<td align="center">
+
+### Stajyer 6
+**Backend ve API Gecidi**
+*Squad: Platform*
+
+</td>
+<td>
+
+Go API gecidi ve paylasilan protobuf kontratinin sahibidir. REST endpoint'leri, cikarim servisine gRPC istemcisi, asenkron is yonetimi ve OpenAPI dokumantasyonundan sorumludur.
 
 <details>
 <summary>Arastirma Konulari</summary>
 
 - Go REST API gelistirme (Gin / Echo cercevesi)
-- Go gRPC istemci uygulamasi ve baglanti havuzlama
-- Protobuf sema tanimi (`.proto` dosyalari)
-- React + TypeScript SPA gelistirme
-- Dosya yukleme/indirme islemleri (multipart form, streaming)
-- Prometheus istemci kutuphanesi ozel metrik tanimi
-- Grafana pano saglama (JSON modeli)
-- Evidently AI veri kaymasi ve model performansi raporlama
+- Protobuf sema tasarimi (`buf` araclari, kirici degisiklik tespiti)
+- Go gRPC istemcisi, baglanti havuzlama, geri cekilmeli yeniden deneme
+- Asenkron is kuyrugu desenleri (Redis / NATS)
+- Dosya yukleme streaming (multipart form, S3 multipart upload)
+- Go'dan OpenAPI 3.0 uretimi (`swaggo/swag`)
+- Istek dogrulama (`go-playground/validator`)
 
 </details>
+
+**Eslesir:** Stajyer 5 (proto sema sahibi), Stajyer 7 (API ↔ on yuz kontrati)
+
+</td>
+</tr>
+
+<tr>
+<td align="center">
+
+### Stajyer 7
+**On Yuz ve Gozlemlenebilirlik**
+*Squad: Platform*
+
+</td>
+<td>
+
+Kullaniciya yonelik katman ve izlemenin sahibidir. React+TypeScript SPA, goruntu yukleme/gorsellestirme, Prometheus/Grafana panolari ve Evidently kayma raporlarindan sorumludur.
+
+<details>
+<summary>Arastirma Konulari</summary>
+
+- React 19 + TypeScript SPA mimarisi
+- Durum ve sunucu onbellegi icin Zustand / React Query
+- Etkilesimli goruntu gorsellestirme icin Three.js / D3.js
+- Dosya yukleme UX (ilerleme, parcalama, iptal)
+- Prometheus istemci kutuphanesi, ozel metrik tanimi
+- Grafana pano saglama (JSON modeli, kod-olarak)
+- Evidently AI veri kaymasi ve model performansi raporlamasi
+
+</details>
+
+**Eslesir:** Stajyer 6 (API kontrati)
+
+</td>
+</tr>
+
+<tr>
+<td align="center">
+
+### Yuzen Rol
+**MLOps / Platform**
+*Squad lider'leri arasinda paylasilir*
+
+</td>
+<td>
+
+CI/CD, MicroK8s kurulumu, Argo CD bootstrap, Sealed Secrets ve MLflow altyapisi **Stajyer 1, 5 ve 6** tarafindan mentor destegi ile **ortak sahiplenilir**. Tek bir stajyer altyapiya adanmaz — bunun yerine her squad lideri kendi servislerinin altyapisini teslim eder (Data → Airflow/MinIO, ML → MLflow/Cikarim, Platform → Ingress/Gateway).
+
+Bu, tek bir "altyapi stajyeri" bus-factor riskini ortadan kaldirir ve her squad'i kendi dagitimi sahiplenmeye zorlar.
 
 </td>
 </tr>
@@ -557,22 +660,89 @@ Tum kullaniciya yonelik katmanlarin sahibidir. Go API gecidi, React on yuz, Prom
 
 ## 📁 Depo Yapisi
 
+> **Durum gostergeleri:** ✅ mevcut · 🚧 1–2. haftada iskeletlenecek · ⏳ planli (sonraki haftalar).
+> Asagidaki yapi **hedef duzendir**; suanda repo'da yalnizca ✅ isaretli olanlar var.
+
 ```
 deephorizon/
 │
-├── README.md                              # Ingilizce dokumantasyon
-├── README_TR.md                           # Turkce dokumantasyon
-├── requirements.txt                       # Python bagimliliklari
-├── .gitignore
+├── README.md                              # Ingilizce dokumantasyon ✅
+├── README_TR.md                           # Turkce dokumantasyon ✅
+├── .gitignore                             # ✅
+│
+├── requirements/                          # Bolunmus Python bagimliliklari (astropy ↔ torch catismasini onler) 🚧
+│   ├── base.txt                           #   numpy, scipy, opencv, scikit-image
+│   ├── data.txt                           #   astropy, eht-imaging, dvc, great-expectations
+│   ├── ml.txt                             #   torch, torchvision, mlflow, optuna, lpips
+│   └── serving.txt                        #   grpcio, onnxruntime, prometheus-client
+│
+├── pyproject.toml                         # uv / poetry config, ruff, mypy 🚧
+├── go.mod / go.sum                        # Go modulu (services/api) ⏳
 │
 ├── assets/
-│   └── sample_degradation.png
+│   └── sample_degradation.png             # ✅
 │
-└── scripts/
+├── proto/                                 # Go ile Python arasinda PAYLASILAN kontrat 🚧
+│   ├── buf.yaml                           #   buf lint + kirici degisiklik tespiti
+│   ├── buf.gen.yaml                       #   Go + Python stub uretir
+│   └── deephorizon/v1/
+│       ├── inference.proto                #   Enhance(), Health(), ListModels()
+│       └── common.proto                   #   ImagePayload, Metrics, JobStatus
+│
+├── services/                              # Tum dagitilabilir servisler burada ⏳
+│   ├── ml/                                # Stajyer 3, 4, 5 sahibi
+│   │   ├── models/                        #   unet/, pix2pix/, esrgan/, restormer/
+│   │   ├── losses/                        #   physics.py, perceptual.py, gan.py
+│   │   ├── data/                          #   datasets, dataloaders, transforms
+│   │   ├── training/                      #   train_loop.py, optuna_runner.py
+│   │   ├── evaluation/                    #   metrics.py, benchmark.py
+│   │   └── inference_server/              #   gRPC server uygulamasi
+│   ├── api/                               # Stajyer 6 sahibi (Go gateway)
+│   │   ├── cmd/server/                    #   main.go
+│   │   ├── internal/handlers/             #   /enhance, /models, /health
+│   │   ├── internal/grpc_client/          #   cikarim servisi istemcisi
+│   │   └── api/openapi.yaml               #   uretilmis OpenAPI 3.0
+│   └── frontend/                          # Stajyer 7 sahibi
+│       ├── src/                           #   React 19 + TypeScript
+│       ├── public/
+│       └── package.json
+│
+├── pipelines/                             # Airflow DAG'lari ⏳
+│   ├── dags/
+│   │   ├── eht_ingest.py
+│   │   ├── synthetic_generation.py
+│   │   └── training_data_build.py
+│   └── plugins/
+│
+├── infra/                                 # Tum dagitim artifaktlari ⏳
+│   ├── k8s/
+│   │   ├── app-of-apps.yaml               #   Kok Argo CD Application
+│   │   ├── data/                          #   Airflow, MinIO manifest'leri (kustomize)
+│   │   ├── ml/                            #   MLflow, egitim Job, cikarim Deployment
+│   │   ├── app/                           #   Go API, React on yuz, Ingress
+│   │   ├── monitor/                       #   Prometheus, Grafana, Argo CD
+│   │   └── secrets/                       #   SealedSecret manifest'leri (commit guvenli)
+│   ├── docker/                            #   Dockerfile'lar (cok asamali)
+│   │   ├── ml.Dockerfile
+│   │   ├── api.Dockerfile
+│   │   └── frontend.Dockerfile
+│   └── docker-compose.dev.yaml            #   Yerel dev stack (MinIO, MLflow, Postgres)
+│
+├── .github/workflows/                     # CI ⏳
+│   ├── ci.yml                             #   lint, test, tip kontrolu
+│   ├── build.yml                          #   docker build + push
+│   └── train.yml                          #   manuel/zamanlanmis GPU egitimi
+│
+├── docs/                                  # ADR'lar ve modul dokumantasyonu ⏳
+│   ├── adr/                               #   mimari karar kayitlari
+│   └── runbooks/                          #   on-call kilavuzlari
+│
+└── scripts/                               # Bagimsiz scriptler (ince tutulur) ✅
     ├── download_eht_data.py               # EHT UVFITS indirici (7 veri seti, 88 dosya)
-    ├── generate_synthetic_data.py          # eht-imaging sentetik uretici (128x128)
-    ├── generate_training_data.py           # Egitim verisi ureticisi (512x512, 10K cift)
-    └── visualize_samples.py               # Veri gorsellestirme (PNG cikti)
+    ├── generate_synthetic_data.py         # eht-imaging sentetik uretici (128x128)
+    ├── generate_training_data.py          # Egitim verisi ureticisi (512x512, 10K cift)
+    ├── visualize_samples.py               # Veri gorsellestirme (PNG cikti)
+    └── eval_baseline.py                   # No-ML temel metrikleri (bikubik) ⏳
 ```
 
 <br>
@@ -601,9 +771,14 @@ cd deephorizon
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Bagimliliklari yukle
-pip install -r requirements.txt
+# Bagimliliklari yukle (data + ml; ihtiyacin olan altkumeyi sec)
+pip install -r requirements/base.txt -r requirements/data.txt -r requirements/ml.txt
+
+# Veya uv ile (onerilen)
+uv sync --extra data --extra ml
 ```
+
+> **Neden bolundu?** `eht-imaging` eski `numpy`/`scipy` surumlerini pinler ve guncel `torch` wheels'leri ile catisir. Ayni ortamda kurmak kirilgan. `data` ve `ml` extras production'da **ayri virtualenv**'lerde yasayacak sekilde tasarlandi (veri hatti pod'lari vs egitim pod'lari).
 
 <br>
 
@@ -742,15 +917,7 @@ flowchart LR
 | `deephorizon-app` | `infra/k8s/app/` | `deephorizon-app` | Otomatik sync |
 | `deephorizon-monitor` | `infra/k8s/monitor/` | `deephorizon-monitor` | Otomatik sync |
 
-```bash
-# Argo CD bu repo'nun infra/k8s/ dizinini izler
-# K8s manifest'leri degistiginde → Argo CD MicroK8s'e otomatik sync yapar
-# Dagitimlar icin manuel kubectl apply gerekmez
-
-# Sync durumunu kontrol et
-argocd app list
-argocd app get deephorizon-app
-```
+Argo CD bu repo'nun `infra/k8s/` dizinini izler ve `main`'e her push'ta otomatik sync yapar. Dagitim akisinda manuel `kubectl apply` yoktur — Git'te bir manifest degisirse, cluster'da degisir.
 
 <br>
 
@@ -762,25 +929,7 @@ argocd app get deephorizon-app
 
 Tum servisler **MicroK8s** uzerinde calisir — GPU is yukleri icin ideal, hafif, tek node Kubernetes dagitimi. Dagitimlar **Argo CD** ile GitOps uzerinden yonetilir.
 
-### MicroK8s Kurulumu
-
-```bash
-# MicroK8s kur
-sudo snap install microk8s --classic --channel=1.33
-
-# Gerekli eklentileri etkinlestir
-microk8s enable dns storage ingress gpu metallb:10.64.140.43-10.64.140.49
-
-# Argo CD'yi etkinlestir
-microk8s enable community
-microk8s enable argocd
-
-# Kolaylik icin alias
-alias kubectl='microk8s kubectl'
-
-# GPU'nun algilandigini dogrula
-microk8s kubectl get nodes -o json | jq '.items[].status.allocatable["nvidia.com/gpu"]'
-```
+> **Kurulum stajyer odevidir.** Bu README **hedef mimariyi** ve **kullanilacak teknolojileri** belgeler, adim adim kurulum talimatlarini degil. Her squad lideri sahibi oldugu altyapi bilesenlerini (MicroK8s, GPU operator, Argo CD bootstrap, Sealed Secrets controller, ingress) arastirip ayaga kaldirir. Her aracin resmi dokumantasyonu [Kaynaklar](#-referanslar) bolumunde linklidir — bunlari okumak ogrenme ciktisinin bir parcasidir.
 
 ### Kume Mimarisi
 
@@ -867,43 +1016,18 @@ resources:
     cpu: "8"
 ```
 
-### Argo CD Uygulama Kurulumu
+> **GPU paylasim politikasi.** Tek L40S'imiz var ama hem egitim `Job`'i hem `inference` `Deployment`'i `nvidia.com/gpu: 1` istiyor. Birinin digerini ackliktan oldurmemesi icin:
+>
+> 1. **Varsayilan mod** — cikarim Deployment `replicas: 1` ile calisir. Egitim Job'lari `nodeSelector: { workload: training }` ve `PriorityClass: low-priority` kullanir; cikarim pod'u egitim baslamadan once 0'a olceklenir (bu `train.yml` workflow'unda ele alinir).
+> 2. **Eszamanli mod (opsiyonel, 11. hafta+)** — L40S'te NVIDIA MIG (Multi-Instance GPU) etkinlestirip karti `1g.12gb` cikarim + `3g.36gb` egitim olarak bolmek. `gpu-operator` Helm chart'i, `migStrategy: mixed`.
+>
+> 12 haftalik pencere icin **varsayilan modu** sec — MIG'in cikarim QPS'i dusukken net faydasi olmadan kurulum maliyeti var.
 
-```bash
-# Repo'yu Argo CD uygulamasi olarak kaydet
-argocd app create deephorizon-app \
-  --repo https://github.com/Octapull/deephorizon.git \
-  --path infra/k8s/app \
-  --dest-server https://kubernetes.default.svc \
-  --dest-namespace deephorizon-app \
-  --sync-policy automated \
-  --auto-prune \
-  --self-heal
+### Argo CD Stratejisi
 
-# Sync durumunu kontrol et
-argocd app list
-argocd app get deephorizon-app
+**App-of-apps** desenini kullaniyoruz: tek bir kok `Application` (`infra/k8s/app-of-apps.yaml`) tum dort squad-seviyesi Application'i izler. Yeni servis eklemek = tek bir manifest eklemek, `argocd app create` calistirmak degil. `main`'e her push'ta otomatik sync aktiftir.
 
-# Manuel sync (gerekirse)
-argocd app sync deephorizon-app
-```
-
-### Sik Kullanilan Komutlar
-
-```bash
-# GPU durumunu kontrol et
-microk8s kubectl describe node | grep -A5 "nvidia.com/gpu"
-
-# Egitim isini manuel baslat
-microk8s kubectl apply -f infra/k8s/ml/training-job.yaml
-
-# Tum DeepHorizon pod'larini izle
-microk8s kubectl get pods -A -l app.kubernetes.io/part-of=deephorizon
-
-# Argo CD dashboard'unu goruntule
-microk8s kubectl port-forward svc/argocd-server -n argocd 8443:443
-# https://localhost:8443 adresini ac
-```
+Takimin burada kullanacagi teknolojiler: **Argo CD CLI**, ortam-basina overlay icin **`kustomize`**, ucuncu parti chart'lar icin **Helm** (Sealed Secrets, gpu-operator).
 
 <br>
 
@@ -938,23 +1062,15 @@ Gelistirici → kubeseal sifrele → SealedSecret (Git'e commit edilir)
 | `grafana-admin` | `deephorizon-monitor` | Grafana yonetici sifresi |
 | `github-registry` | `deephorizon-app` | Container goruntu cekme sifresi |
 
-### Sealed Secrets Kullanimi
+### Araclar
 
-```bash
-# Sealed Secrets controller'i yukle
-helm install sealed-secrets sealed-secrets/sealed-secrets \
-  -n kube-system
+Takim su araclarla calisacak:
 
-# Gizli anahtar olustur ve sifrele
-kubectl create secret generic minio-credentials \
-  --from-literal=access-key=CHANGEME \
-  --from-literal=secret-key=CHANGEME \
-  --dry-run=client -o yaml | \
-  kubeseal --format yaml > infra/k8s/secrets/minio-sealed.yaml
+- **Sealed Secrets** (Bitnami) — controller Helm ile kurulur; manifest'leri commit etmeden once `kubeseal` CLI ile yerel olarak sifrelenir.
+- **`kubectl create secret --dry-run=client`** ile duz Secret taslagi olusturulur ve `kubeseal`'a pipe edilir.
+- Controller kurulumu icin **Helm**.
 
-# Commit etmek guvenlidir (sifreli)
-git add infra/k8s/secrets/minio-sealed.yaml
-```
+Net install / encrypt komutlari bilincli olarak verilmedi — Sealed Secrets dokumantasyonu icin [Referanslar](#-referanslar) bolumune bak.
 
 ### Kurallar
 
@@ -972,15 +1088,22 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 ## 📅 Yol Haritasi
 
-| Hafta | Odak | Ciktilar |
-|:---:|:---|:---|
-| **1-2** | Kurulum ve Veri | Depo yapisi, gelistirme ortami, EHT veri indirme, sentetik veri hatti |
-| **3-4** | Temel Model | U-Net egitimi, MLflow takibi, degerlendirme metrikleri (PSNR/SSIM) |
-| **5-6** | GAN Modelleri | Pix2Pix ve ESRGAN egitimi, Optuna ile hiperparametre arama |
-| **7-8** | SOTA + Sunum | Restormer egitimi, ONNX optimizasyonu, gRPC cikarim sunucusu |
-| **9-10** | API + On Yuz | Go API gecidi, React on yuz, goruntu yukleme/indirme akisi |
-| **11** | Altyapi | K8s dagitimi, CI/CD hatlari, Prometheus/Grafana izleme |
-| **12** | Cilalama ve Demo | Uctan uca test, dokumantasyon, final sunumu |
+| Hafta | Odak | Ciktilar | Squad Lideri |
+|:---:|:---|:---|:---|
+| **1** | Bootstrap | Repo iskeleti (`services/`, `proto/`, `infra/`), `pyproject.toml`, CI iskeleti, `proto/` v1 dondurulur | Tumu |
+| **2** | Veri + Proto kontrati | EHT indirme, sentetik uretici (128x128), egitim ciftleri (512x512), `inference.proto` incelenip merge edilir | Data, Platform |
+| **3** | Temel + Degerlendirme | U-Net egitimi, MLflow ayakta, metrik paketi (PSNR/SSIM/LPIPS/FID), `eval_baseline.py` | ML |
+| **4** | GAN Asamasi | Pix2Pix egitimi, fizik kaybi v1, Optuna runner | ML |
+| **5** | ESRGAN | ESRGAN egitimi (Asama 3 [HEDEF]), algisal kayip ayarlama | ML |
+| **6** | Cikarim + Go API iskeleti | ONNX export, gRPC cikarim sunucusu, Go gateway `/health` + `/enhance` (mock) | ML, Platform |
+| **7** | Uctan uca baglanti | Go → Python gercek gRPC cagrisi, asenkron is akisi, OpenAPI spec | Platform |
+| **8** | **Go/no-go karari** + On Yuz | Asama 3 metrik incelemesi → Restormer karari (Asama 4 [GENISLEME]). React SPA MVP | Tumu |
+| **9** | Restormer (eger go) / Cilalama (eger no-go) | Restormer egitimi VEYA ESRGAN rafinasyonu + on yuz feature-complete | ML, Platform |
+| **10** | K8s + Argo CD | MicroK8s dagitim, Sealed Secrets, app-of-apps bootstrap, egitim Job manifest | Tum squad'lar |
+| **11** | Gozlemlenebilirlik + Saglamlastirma | Prometheus metrikleri, Grafana panolari, Evidently kayma raporu, yuk testi | Platform |
+| **12** | Demo | Uctan uca test, runbook'lar, ADR'lar, final sunum | Tumu |
+
+> **8. hafta go/no-go karari.** Asama 3 (ESRGAN) 8. haftanin Cuma gunune kadar `medium` kumede **SSIM ≥ 0.85** tutturursa, takim 9–10. haftalarda Asama 4 (Restormer)'a girer. Aksi takdirde 9–10. haftalar ESRGAN ve sunum yiginini saglamlastirmak icin kullanilir. Bu karar ML squad'i ve proje mentoru tarafindan birlikte verilir.
 
 <br>
 
@@ -1043,6 +1166,17 @@ git add infra/k8s/secrets/minio-sealed.yaml
 - [Deep Horizon: ML from GRMHD simulations](https://www.aanda.org/articles/aa/full_html/2020/04/aa37014-19/aa37014-19.html) — A&A, 2020
 - [eht-imaging: Interferometric Imaging Library](https://github.com/achael/eht-imaging) — Chael et al.
 
+### Altyapi ve MLOps Dokumantasyonu (stajyer self-study)
+- [MicroK8s docs](https://microk8s.io/docs) — kurulum, addon'lar, GPU etkinlestirme
+- [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/index.html) — device plugin, MIG yapilandirma
+- [Argo CD docs](https://argo-cd.readthedocs.io/) — bootstrap, app-of-apps deseni
+- [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) — controller kurulumu ve `kubeseal` kullanimi
+- [Kustomize](https://kustomize.io/) — overlay tabanli manifest yonetimi
+- [MLflow docs](https://mlflow.org/docs/latest/index.html) — tracking server, model registry
+- [Apache Airflow](https://airflow.apache.org/docs/) — DAG yazimi, provider'lar
+- [DVC docs](https://dvc.org/doc) — S3-uyumlu remote'lar ile veri versiyonlama
+- [buf docs](https://buf.build/docs) — protobuf lint ve kirici degisiklik tespiti
+
 <br>
 
 ---
@@ -1051,7 +1185,7 @@ git add infra/k8s/secrets/minio-sealed.yaml
 
 <div align="center">
 
-**Octapull Stajyerleri tarafindan 🔭 ile insa edildi**
+**Octapull Stajyerleri tarafindan 🔭 ile insa edildi — 7 yapici, 3 squad, 1 kara delik**
 
 <sub>Kara deliklerin sirlarini acmak icin derin ogrenme</sub>
 
