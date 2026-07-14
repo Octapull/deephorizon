@@ -874,7 +874,7 @@ python scripts/generate_training_data.py
 # Çıktı: data/training/
 #   clean/     → 10.000 temiz görüntü (.npy, float32)
 #   degraded/  → 10.000 bozulmuş görüntü (.npy, float32)
-# Tahmini boyut: ~2,5 GB
+# Ölçülen boyut: ~20 GiB (512x512 float32 görüntü başına 1 MiB x 20.000 dosya)
 ```
 
 <br>
