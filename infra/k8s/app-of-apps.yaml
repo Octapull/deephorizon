@@ -1,0 +1,22 @@
+# Root Application (app-of-apps pattern).
+# TEK SEFERLIK elle uygulanır: kubectl apply -f infra/k8s/app-of-apps.yaml
+# Sonrasinda infra/k8s/apps/ altina eklenen her Application otomatik senkronlanir;
+# deploy akisi yalnizca "git push origin main"dir.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: deephorizon-infra
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
