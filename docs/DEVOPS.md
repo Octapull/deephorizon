@@ -176,10 +176,13 @@ Internet → host:443 (NPM) → MicroK8s NodePort → Service → Pod
   sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
   sudo ufw enable    # allow OpenSSH'in İŞLENDİĞİNİ görmeden enable etme — kilit riski
   ```
-  Sonrasında cluster ağının bozulmadığı doğrulandı: tüm pod'lar Running + pod içinden
-  `nslookup kubernetes.default.svc.cluster.local` cevap verdi ✓ (Cevap gelmeseydi:
-  UFW'nin `deny routed`'ı Calico'ya karışıyor demekti; çözüm `ufw allow in/out on
-  vxlan.calico` ve `cali+`.)
+  İlk doğrulamada pod'lar Running + pod içinden `nslookup` cevap verdi; ancak bu test
+  yetersizmiş — **pod→host trafiği (API server) sessizce kırılmıştı** (bkz. Hata #7).
+  Kalıcı çözüm olarak Calico arayüzleri UFW'den muaf tutuldu:
+  ```bash
+  sudo ufw allow in on cali+ && sudo ufw allow out on cali+
+  sudo ufw allow in on vxlan.calico && sudo ufw allow out on vxlan.calico
+  ```
 - **UFW'nin yan etkisi (tasarım gereği):** NodePort'lar (örn. Argo CD 30443) dışarıdan
   artık erişilemez. Domain + NPM proxy host'ları gelene kadar UI erişimi SSH tüneliyle:
   `ssh -L 8443:<node-ip>:30443 <kullanici>@<sunucu-ip>` → `https://localhost:8443`.
@@ -246,6 +249,24 @@ Internet → host:443 (NPM) → MicroK8s NodePort → Service → Pod
   Argo CD public repo'yu credential'sız okur; bağlantı declarative Secret ile tanımlandı.
   Repo ileride private olursa: read-only deploy key üretilir, public key repo admin'ine
   ekletilir (public key gizli değildir, rahatça iletilebilir).
+
+### #7 — Argo CD `ComparisonError: dial tcp 10.152.183.1:443: i/o timeout` (UFW sonrası)
+
+- **Belirti:** App-of-apps uygulandıktan sonra root Application `Sync Status: Unknown`
+  kaldı; koşullarda API server'a (`10.152.183.1:443` — `kubernetes.default` ClusterIP'si)
+  i/o timeout. UFW etkinleştirilirken yapılan DNS testi geçtiği halde ortaya çıktı.
+- **Neden:** UFW'nin `default deny (incoming)` kuralı **pod→host** trafiğini kesiyor.
+  Pod'dan API server'a giden paket host'un INPUT zincirine düşer (API server host'ta
+  çalışan bir süreçtir) ve UFW reddeder. DNS testinin geçmesi yanıltıcıydı: o
+  **pod→pod** trafiğiydi (FORWARD zinciri — Calico'nun kuralları UFW'den önce kabul
+  eder). UFW'den önce kurulmuş bileşenler mevcut bağlantıları üzerinden bir süre
+  çalışmaya devam ettiği için sorun gecikmeli göründü.
+- **Çözüm:** Calico arayüzlerinden gelen trafik UFW'den muaf tutuldu (`ufw allow in/out
+  on cali+` ve `vxlan.calico`). Bu, dışarıya port açmaz — internete bakan yüzey hâlâ
+  22/80/443.
+- **Ders:** UFW sonrası cluster sağlığını yalnızca pod→pod DNS ile değil, **pod→API
+  server** ile de test et: pod içinden `kubernetes.default.svc.cluster.local:443`'e
+  bağlantı denemesi veya herhangi bir controller'ın loglarında timeout kontrolü.
 
 ---
 
