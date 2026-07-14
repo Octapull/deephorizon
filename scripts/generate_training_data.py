@@ -4,7 +4,7 @@ DeepHorizon - Training Data Generator (512x512)
 Generates 10,000 clean/degraded pairs at 512x512 resolution.
 Three model types: crescent (60%), ring (25%), double ring (15%).
 Four degradation levels: light, medium, heavy, extreme.
-Output: .npy float32 arrays (~2.5 GB total).
+Output: .npy float32 arrays (~20 GiB total: 1 MiB per image x 20,000 files).
 """
 
 import numpy as np

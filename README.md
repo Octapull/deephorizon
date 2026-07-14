@@ -872,7 +872,7 @@ python scripts/generate_training_data.py
 # Output: data/training/
 #   clean/     → 10,000 clean images (.npy, float32)
 #   degraded/  → 10,000 degraded images (.npy, float32)
-# Estimated size: ~2.5 GB
+# Measured size: ~20 GiB (1 MiB per 512x512 float32 image x 20,000 files)
 ```
 
 <br>

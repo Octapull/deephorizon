@@ -147,8 +147,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   EOF
   ```
   Sonuç: Settings → Repositories → `CONNECTION STATUS: Successful` ✓
-- **Bekleyen tek adım (manifest'ler yazılınca, tek seferlik):**
-  `kubectl apply -f infra/k8s/app-of-apps.yaml` — sonrası tamamen `git push`.
+- **App-of-apps uygulandı** (tek seferlik, aynı gün — bkz. §8): bundan sonrası
+  tamamen `git push`.
 - ⚠️ **Sürüm borcu:** addon **v2.7.2** kurdu (Haziran 2023 — bilinen CVE'leri var).
   Bootstrap için yeterli; ancak UI internete (NPM arkasına) açılmadan önce resmi Helm
   chart'ıyla güncel sürüme taşınmalı. Bilinçli olarak ertelendi.
@@ -189,6 +189,62 @@ Internet → host:443 (NPM) → MicroK8s NodePort → Service → Pod
 - **Docker + UFW uyarısı:** Docker publish ettiği portları iptables'a doğrudan yazar,
   UFW'yi bypass edebilir. Host'ta yeni container yayınlarken en basit korunma
   `127.0.0.1:` bind'ıdır (admin portunda yapıldığı gibi).
+
+## 8. GitOps'un Devreye Alınması: App-of-Apps + İlk İş Yükü (MinIO)
+
+Manifest yapısı `infra/k8s/` altına yazıldı ve `main`'e merge edildi:
+
+```
+infra/k8s/
+├── app-of-apps.yaml     # root Application → infra/k8s/apps'i izler (TEK elle apply)
+├── apps/
+│   ├── data.yaml        # → infra/k8s/data (kustomize, auto-sync+prune+selfHeal)
+│   └── secrets.yaml     # → infra/k8s/secrets (SealedSecret'lar, recursive)
+├── data/                # deephorizon-data ns + MinIO (StatefulSet, 100Gi PVC, Service'ler)
+└── secrets/             # minio-credentials (SealedSecret)
+```
+
+```bash
+# zincirin son elle komutu (bir kez):
+kubectl apply -f https://raw.githubusercontent.com/Octapull/deephorizon/main/infra/k8s/app-of-apps.yaml
+```
+
+- İlk sync `ComparisonError: i/o timeout` ile takıldı → UFW pod→API-server trafiğini
+  kesiyordu (**Hata #7**, çözüldü). Sonrasında `data` + `secrets` app'leri otomatik
+  oluştu, `minio-0` Running, PVC Bound.
+- MinIO imajı **pinli** (`RELEASE.2025-09-07T16-13-09Z`), credential'lar SealedSecret'tan.
+- S3 API NodePort **30900**, console **30901** — UFW ile yalnızca yerel subnet'e açık:
+  ```bash
+  sudo ufw allow from 10.10.1.0/24 to any port 30900 proto tcp
+  sudo ufw allow from 10.10.1.0/24 to any port 30901 proto tcp
+  ```
+- **Yeni servis eklemenin reçetesi artık şu:** manifest'i `infra/k8s/<alan>/` altına yaz
+  → gerekiyorsa `infra/k8s/apps/<alan>.yaml` Application'ı ekle → secret'ları seal'leyip
+  `infra/k8s/secrets/`'a koy → PR → merge. Argo CD gerisini yapar. (MLflow bu reçeteyle
+  kurulacak — `deephorizon-ml` namespace'i, `mlflow` bucket'ı hazır bekliyor.)
+- `.gitignore` tuzağı: kök `data/` kuralı `infra/k8s/data/`'yı da yutuyordu; kural
+  köke sabitlendi (`/data/`).
+
+## 9. Veri Katmanı: Bucket'lar, Kullanıcılar, İlk Eğitim Seti
+
+Detaylı düzen ve ML erişim rehberi: [`docs/DATA.md`](DATA.md). Özet:
+
+- **Bucket'lar:** `raw` (değişmez kaynak), `datasets` (eğitim setleri, versiyonlu
+  prefix: `training-512/v1/`), `mlflow` (rezerve — MLflow artifact store).
+- **Kullanıcılar** (`mc admin user add` + policy):
+  - `ml-team` → özel **`ml-read`** policy'si: ListBucket+GetObject, yalnızca
+    `raw`+`datasets` scope'u. Yerleşik `readonly` yetmedi (**Hata #8**).
+  - `data-pipeline` → readwrite (veri yükleme akışları için; root kullanılmaz).
+- **İlk set yüklendi:** `datasets/training-512/v1/` = 10.000 çift 512×512
+  (**~20 GiB / 20.000 obje** — README'deki "~2.5 GB" tahmini yanlıştı, düzeltildi).
+  Üretim: sunucuda repo klonu + hafif venv (`numpy+scipy`), `generate_training_data.py`
+  (seed=42), yükleme `mc mirror`.
+- **Disk notu:** MinIO hostpath'te (aynı fiziksel disk) yaşar — set başına ~20 GiB
+  bütçele; lokal üretim kopyaları yüklendikten sonra silinir (seed sabit, yeniden
+  üretilebilir).
+- 🔴 **Açık iş — root parola rotasyonu:** MinIO root parolası kurulum sırasında sohbet
+  kanalına yapıştırıldı. Bucket/kullanıcı işleri bittiği için rotasyon yapılmalı:
+  yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart.
 
 ---
 
@@ -268,18 +324,33 @@ Internet → host:443 (NPM) → MicroK8s NodePort → Service → Pod
   server** ile de test et: pod içinden `kubernetes.default.svc.cluster.local:443`'e
   bağlantı denemesi veya herhangi bir controller'ın loglarında timeout kontrolü.
 
+### #8 — MinIO: `readonly` policy'li kullanıcı `mc ls` yapamıyor (Access Denied)
+
+- **Belirti:** `ml-team` kullanıcısına yerleşik `readonly` policy'si iliştirildi;
+  kimlik doğrulama geçiyor ama `mc ls` `Access Denied` dönüyor.
+- **Neden:** MinIO'nun yerleşik `readonly` policy'si yalnızca `s3:GetObject` +
+  `s3:GetBucketLocation` içerir — **`s3:ListBucket` yoktur**. Yani anahtarı bilinen
+  dosya indirilebilir ama klasör listelenemez.
+- **Çözüm:** Özel `ml-read` policy'si yazıldı: `ListBucket` + `GetObject`, yalnızca
+  `raw` ve `datasets` bucket'larına scope'lu (`mlflow` kapsam dışı). Doğrulama üçlüsü:
+  listeleme çalışıyor, yazma reddediliyor, kapsam dışı bucket reddediliyor.
+- **Ders:** MinIO'da yerleşik policy'lere güvenme; kullanıcı başına ihtiyaç duyulan
+  aksiyonları bucket scope'uyla açıkça yaz.
+
 ---
 
 ## Bitiş Durumu ve Sıradaki İşler
 
-**Sunucu platform-hazır:** `nvidia-smi` ✓ · MicroK8s v1.32.13 `Ready` ✓ ·
+**Sunucu platform-hazır ve GitOps canlı:** `nvidia-smi` ✓ · MicroK8s v1.32.13 `Ready` ✓ ·
 `nvidia.com/gpu: 1` + `Test PASSED` ✓ · Sealed Secrets (yedekli) ✓ · Argo CD + repo ✓ ·
-NPM 80/443 ✓ · UFW ✓
+NPM 80/443 ✓ · UFW ✓ · **App-of-apps sync'liyor** ✓ · **MinIO Running + ilk eğitim
+seti (20 GiB) yüklü, erişim kontrollü** ✓
 
-| Sıradaki iş | Not |
-|:---|:---|
-| `infra/k8s/` manifest'leri | Namespace'ler, app-of-apps, ilk servis (MinIO mantıklı başlangıç) — GitOps akışının uçtan uca testi |
-| Argo CD sürüm yükseltme | v2.7.2 → güncel; **UI internete açılmadan önce** (resmi Helm chart'ına geçilerek) |
-| Secret'ların seal'lenmesi | Root README "Secret Inventory" envanteri → `infra/k8s/secrets/` |
-| Domain + NPM proxy host'ları | Domain alınınca: A kaydı → sunucu IP; her servis için NodePort→domain eşlemesi + Let's Encrypt; sonrasında SSH tünellerine gerek kalmaz |
-| GPU contention politikası | Manifest'lerde "default mode": training öncesi inference `replicas: 0` (root README) |
+| Sıradaki iş | Sahibi | Not |
+|:---|:---|:---|
+| **MLflow** (`deephorizon-ml`) | Ekipten başka üye | §8'deki reçeteyle: manifest → `apps/ml.yaml` → SealedSecret'lar (`mlflow-db-credentials`, `mlflow-s3-credentials`) → PR. `mlflow` bucket'ı ve MinIO endpoint'i hazır (`docs/DATA.md`); artifact store S3 adresi cluster içinden `http://minio.deephorizon-data.svc:9000` |
+| MinIO root parola rotasyonu | DevOps | Parola sohbet kanalına yapıştırılmıştı; yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart |
+| Argo CD sürüm yükseltme | DevOps | v2.7.2 → güncel; **UI internete açılmadan önce** (resmi Helm chart'ına geçilerek) |
+| Domain + NPM proxy host'ları | DevOps | Domain alınınca: A kaydı → sunucu IP; NodePort→domain eşlemeleri + Let's Encrypt; sonrasında SSH tünellerine gerek kalmaz |
+| Airflow (`deephorizon-data`) | Data squad | Veri üretimi şimdilik elle (`scripts/` + `mc mirror`); DAG'lar yazılınca aynı GitOps reçetesi |
+| GPU contention politikası | ML+DevOps | Training/inference manifest'leri yazılırken "default mode": training öncesi inference `replicas: 0` (root README) |
