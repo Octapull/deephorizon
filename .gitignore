@@ -1,5 +1,6 @@
-# Data (DVC ile versiyonlanacak)
-data/
+# Data (DVC ile versiyonlanacak) — yalnizca repo kokundeki data/; infra/k8s/data gibi
+# alt dizinleri yakalamamasi icin koke sabitlendi (bkz. onundeki /)
+/data/
 *.npy
 *.uvfits
 *.fits
