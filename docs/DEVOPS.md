@@ -246,6 +246,28 @@ Detaylı düzen ve ML erişim rehberi: [`docs/DATA.md`](DATA.md). Özet:
   kanalına yapıştırıldı. Bucket/kullanıcı işleri bittiği için rotasyon yapılmalı:
   yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart.
 
+## 10. MLflow Devreye Alındı (15 Temmuz 2026)
+
+§8'deki reçetenin ilk gerçek kullanımı: `infra/k8s/ml/` (Postgres 17.5 StatefulSet +
+MLflow v3.13.0-full Deployment, imajlar pinli) + `apps/ml.yaml` + iki SealedSecret
+PR ile merge edildi; Argo CD `deephorizon-ml`'i kendisi kurdu. Doğrulama uçtan uca
+smoke test ile: param/metric → Postgres, artifact upload+download → MinIO `mlflow`
+bucket'ı (server proxy üzerinden) ✓
+
+- **Boş-DB tuzağı:** ilk açılışta init container'ın `mlflow db upgrade`'i crashloop'a
+  girdi — bkz. **Hata #9**. Şema bir kerelik pod'la bootstrap edildi; init container
+  artık iki senaryoyu da (ilk kurulum / sürüm yükseltme) ele alıyor.
+- **MinIO tarafı (elle, bir kez):** `mlflow` kullanıcısı + yalnızca `mlflow`
+  bucket'ına scoped `mlflow-rw` policy (multipart izinleri dahil — büyük model
+  artifact'ları için). Root credential kullanılmıyor → root parola rotasyonunun
+  önünde engel kalmadı.
+- **UFW:** NodePort 30500 yalnızca yerel subnet'e açıldı (30900/30901 ile aynı kural).
+- **Erişim:** LAN `http://10.10.1.132:30500` · cluster içi
+  `http://mlflow.deephorizon-ml.svc:5000`. Artifact'lar server proxy'sinden geçtiği
+  için ML tarafının S3 credential'ına ihtiyacı yok. Host header doğrulaması
+  (`MLFLOW_SERVER_ALLOWED_HOSTS`) **port dahil** eşleşir; ileride NPM arkasına
+  domain'le alınırsa domain listeye eklenmeli, yoksa 403.
+
 ---
 
 ## Karşılaşılan Hatalar: Sebep ve Çözüm
@@ -337,6 +359,22 @@ Detaylı düzen ve ML erişim rehberi: [`docs/DATA.md`](DATA.md). Özet:
 - **Ders:** MinIO'da yerleşik policy'lere güvenme; kullanıcı başına ihtiyaç duyulan
   aksiyonları bucket scope'uyla açıkça yaz.
 
+### #9 — MLflow init: `mlflow db upgrade` → `relation "metrics" does not exist` (boş DB)
+
+- **Belirti:** İlk deploy'da mlflow pod'u `Init:CrashLoopBackOff`; migration logunda
+  alembic'in ilk adımı (`ALTER TABLE metrics ADD COLUMN step ...`) `UndefinedTable`
+  ile düşüyor. Postgres sağlıklı, secret'lar çözülmüş — sorun komutun kendisinde.
+- **Neden:** `mlflow db upgrade` yalnızca **var olan** şemayı migrate eder. MLflow'un
+  taban tabloları alembic'le değil, tracking store'un ilk açılışında (`create_all`)
+  oluşturulur; migration zinciri "tablolar zaten var" varsayımıyla ALTER'larla başlar
+  → boş DB'de daha ilk adımda patlar.
+- **Çözüm:** Şema bir kerelik pod'la bootstrap edildi — `SqlAlchemyStore(uri, ...)`
+  instantiate etmek boş DB'de `create_all` + head'e migrate yapar; sonrasında
+  `db upgrade` no-op. Kalıcı fix: init container tablo yoksa store init, varsa
+  `_upgrade_db` çalıştırıyor (`infra/k8s/ml/mlflow.yaml`).
+- **Ders:** "migrate" araçları bootstrap araçları değildir — ilk kurulum (boş DB) ve
+  sürüm yükseltme ayrı senaryolardır; manifest'i ikisiyle de test et.
+
 ---
 
 ## Bitiş Durumu ve Sıradaki İşler
@@ -344,12 +382,13 @@ Detaylı düzen ve ML erişim rehberi: [`docs/DATA.md`](DATA.md). Özet:
 **Sunucu platform-hazır ve GitOps canlı:** `nvidia-smi` ✓ · MicroK8s v1.32.13 `Ready` ✓ ·
 `nvidia.com/gpu: 1` + `Test PASSED` ✓ · Sealed Secrets (yedekli) ✓ · Argo CD + repo ✓ ·
 NPM 80/443 ✓ · UFW ✓ · **App-of-apps sync'liyor** ✓ · **MinIO Running + ilk eğitim
-seti (20 GiB) yüklü, erişim kontrollü** ✓
+seti (20 GiB) yüklü, erişim kontrollü** ✓ · **MLflow canlı** (Postgres backend +
+MinIO artifact store, uçtan uca smoke test — bkz. §10) ✓
 
 | Sıradaki iş | Sahibi | Not |
 |:---|:---|:---|
-| **MLflow** (`deephorizon-ml`) | Ekipten başka üye | §8'deki reçeteyle: manifest → `apps/ml.yaml` → SealedSecret'lar (`mlflow-db-credentials`, `mlflow-s3-credentials`) → PR. `mlflow` bucket'ı ve MinIO endpoint'i hazır (`docs/DATA.md`); artifact store S3 adresi cluster içinden `http://minio.deephorizon-data.svc:9000` |
-| MinIO root parola rotasyonu | DevOps | Parola sohbet kanalına yapıştırılmıştı; yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart |
+| Postgres yedeği (MLflow) | DevOps | Experiment metadata tek hostpath diskte; `pg_dump` → MinIO CronJob'ı yazılmalı |
+| MinIO root parola rotasyonu | DevOps | Parola sohbet kanalına yapıştırılmıştı; yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart. MLflow root kullanmıyor (§10) — rotasyonun önünde engel yok |
 | Argo CD sürüm yükseltme | DevOps | v2.7.2 → güncel; **UI internete açılmadan önce** (resmi Helm chart'ına geçilerek) |
 | Domain + NPM proxy host'ları | DevOps | Domain alınınca: A kaydı → sunucu IP; NodePort→domain eşlemeleri + Let's Encrypt; sonrasında SSH tünellerine gerek kalmaz |
 | Airflow (`deephorizon-data`) | Data squad | Veri üretimi şimdilik elle (`scripts/` + `mc mirror`); DAG'lar yazılınca aynı GitOps reçetesi |
