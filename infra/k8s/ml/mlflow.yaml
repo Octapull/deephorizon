@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      initContainers:
+        - name: migrate-database
+          image: ghcr.io/mlflow/mlflow:v3.13.0-full
+          command: ["/bin/sh", "-ec"]
+          args:
+            - >-
+              exec mlflow db upgrade
+              "postgresql+psycopg2://${MLFLOW_DB_USERNAME}:${MLFLOW_DB_PASSWORD}@postgres:5432/${MLFLOW_DB_DATABASE}"
+          env:
+            - name: MLFLOW_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-db-credentials
+                  key: username
+            - name: MLFLOW_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-db-credentials
+                  key: password
+            - name: MLFLOW_DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-db-credentials
+                  key: database
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:v3.13.0-full
+          command: ["/bin/sh", "-ec"]
+          args:
+            - >-
+              exec mlflow server
+              --host 0.0.0.0
+              --port 5000
+              --backend-store-uri
+              "postgresql+psycopg2://${MLFLOW_DB_USERNAME}:${MLFLOW_DB_PASSWORD}@postgres:5432/${MLFLOW_DB_DATABASE}"
+              --artifacts-destination s3://mlflow
+          env:
+            - name: MLFLOW_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-db-credentials
+                  key: username
+            - name: MLFLOW_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-db-credentials
+                  key: password
+            - name: MLFLOW_DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-db-credentials
+                  key: database
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-s3-credentials
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-s3-credentials
+                  key: secret-key
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: http://minio.deephorizon-data.svc:9000
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "mlflow:5000,mlflow.deephorizon-ml:5000,mlflow.deephorizon-ml.svc:5000,mlflow.deephorizon-ml.svc.cluster.local:5000,localhost:*,127.0.0.1:*,10.*,172.*,192.168.*"
+          ports:
+            - name: http
+              containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  labels:
+    app: mlflow
+spec:
+  type: NodePort
+  selector:
+    app: mlflow
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      nodePort: 30500

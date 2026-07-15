@@ -1,0 +1,21 @@
+# ML squad Application: infra/k8s/ml/ altindaki kustomize kaynagini izler.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ml
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/ml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deephorizon-ml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
