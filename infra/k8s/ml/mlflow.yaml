@@ -15,13 +15,28 @@ spec:
         app: mlflow
     spec:
       initContainers:
+        # `mlflow db upgrade` bos DB'de sema OLUSTURMAZ, sadece var olani migrate
+        # eder (bkz. docs/DEVOPS.md Hata #9) — bos DB'de store init ile bootstrap.
         - name: migrate-database
           image: ghcr.io/mlflow/mlflow:v3.13.0-full
-          command: ["/bin/sh", "-ec"]
+          command: ["python", "-c"]
           args:
-            - >-
-              exec mlflow db upgrade
-              "postgresql+psycopg2://${MLFLOW_DB_USERNAME}:${MLFLOW_DB_PASSWORD}@postgres:5432/${MLFLOW_DB_DATABASE}"
+            - |
+              import os, sqlalchemy as sa
+              uri = "postgresql+psycopg2://{}:{}@postgres:5432/{}".format(
+                  os.environ["MLFLOW_DB_USERNAME"],
+                  os.environ["MLFLOW_DB_PASSWORD"],
+                  os.environ["MLFLOW_DB_DATABASE"],
+              )
+              engine = sa.create_engine(uri)
+              if sa.inspect(engine).has_table("experiments"):
+                  from mlflow.store.db.utils import _upgrade_db
+                  _upgrade_db(engine)
+                  print("existing schema: migrated to head")
+              else:
+                  from mlflow.store.tracking.sqlalchemy_store import SqlAlchemyStore
+                  SqlAlchemyStore(uri, "s3://mlflow")
+                  print("empty database: schema bootstrapped")
           env:
             - name: MLFLOW_DB_USERNAME
               valueFrom:

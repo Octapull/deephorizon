@@ -18,7 +18,7 @@ datasets/                     # eğitim setleri — ML ekibinin ana adresi
     ├── clean/     00000.npy …
     └── degraded/  00000.npy …
 
-mlflow/                       # rezerve — MLflow artifact store (kurulunca)
+mlflow/                       # MLflow artifact store — yalnızca MLflow server yazar, elle dokunulmaz
 ```
 
 **Versiyonlama kuralı:** üretim parametreleri (PSF, gürültü, model dağılımı…) değişirse
@@ -34,8 +34,12 @@ kaybetmez. (DVC entegrasyonu bu düzenin üstüne gelecek.)
 | **Console (tarayıcı)** | `http://10.10.1.132:30901` (LAN) — bucket gezinme |
 | **Kullanıcı: `ml-team`** | özel `ml-read` policy: listeleme+okuma, yalnızca `raw`+`datasets` — model eğitimi/inceleme için bunu kullan |
 | **Kullanıcı: `data-pipeline`** | read-write — yalnızca veri üreten kişi/pipeline kullanır |
+| **Kullanıcı: `mlflow`** | `mlflow-rw` policy: yalnızca `mlflow` bucket'ı — sadece MLflow server kullanır, kişiye verilmez |
+| **MLflow tracking** | LAN: `http://10.10.1.132:30500` · cluster içi: `http://mlflow.deephorizon-ml.svc:5000` |
 
 Parolalar DevOps'tan (takım parola kasası). **Root credential kimseyle paylaşılmaz.**
+Deney/artifact loglamak için S3 credential'ı gerekmez — MLflow client'ı tracking
+URI'ye konuşur, artifact'lar server proxy'sinden geçer.
 
 ## ML tarafı: veri nasıl çekilir
 
