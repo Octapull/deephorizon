@@ -10,6 +10,7 @@ option go_package = "github.com/Octapull/deephorizon/services/api/internal/pb/de
 // Python model server. All RPCs are unary; streaming is reserved for v2.
 service InferenceService {
   rpc Enhance(EnhanceRequest) returns (EnhanceResponse);
+  rpc EnhanceBatch(EnhanceBatchRequest) returns (EnhanceBatchResponse);
   rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
   rpc Health(HealthRequest) returns (HealthResponse);
 }
@@ -26,6 +27,15 @@ message EnhanceResponse {
   Metrics metrics = 2;
   string model_id = 3;
   JobStatus status = 4;
+}
+
+message EnhanceBatchRequest {
+  repeated EnhanceRequest requests = 1;
+  uint32 max_batch_size = 2;
+}
+
+message EnhanceBatchResponse {
+  repeated EnhanceResponse responses = 1;
 }
 
 message ModelInfo {
