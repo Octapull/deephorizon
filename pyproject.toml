@@ -14,7 +14,9 @@ authors = [{ name = "Octapull Interns" }]
 data = [
   "ehtim>=1.2.10",
   "astropy>=7.0.0",
-  "dvc>=3.59.0",
+  # [s3] extra'si boto3/s3fs getirir; onsuz MinIO remote'una baglanilamaz
+  # (dvc push -> "missing dependency: dvc-s3"). Bkz. docs/DVC.md
+  "dvc[s3]>=3.59.0",
   "great-expectations>=1.4.0",
   # ehtim imports pkg_resources, which setuptools may drop in 82+.
   # Hold the line until ehtim upstream migrates to importlib.resources.
