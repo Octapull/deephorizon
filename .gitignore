@@ -1,9 +1,5 @@
-# Büyük veri klasörleri (DVC yönetir)
-data/training/
-data/raw/eht/
-data/raw/simulated/
-
-# Büyük dosya uzantıları
+# Data (DVC ile versiyonlanacak)
+data/
 *.npy
 *.uvfits
 *.fits
@@ -34,12 +30,3 @@ Thumbs.db
 *.ckpt
 mlruns/
 wandb/
-
-# Windows metadata
-*.Zone.Identifier
-
-# MLflow database
-mlflow.db
-
-# DVC cache
-.dvc/cache/
