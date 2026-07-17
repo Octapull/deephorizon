@@ -1,6 +1,22 @@
-# Data (DVC ile versiyonlanacak) — yalnizca repo kokundeki data/; infra/k8s/data gibi
-# alt dizinleri yakalamamasi icin koke sabitlendi (bkz. onundeki /)
-/data/
+# Buyuk veri — DVC yonetir (bkz. docs/DVC.md).
+#
+# Klasorun KENDISI (/data/) haric tutulamaz: DVC'nin Git'e koymasi gereken
+# data/*.dvc pointer dosyalari da engellenir ve bir dizin haric tutuldugunda
+# icindekiler "!" ile geri alinamaz. Bu yuzden uretim ciktilari tek tek yaziliyor.
+#
+# Ortadaki / sayesinde her desen repo kokune sabit — infra/k8s/data gibi
+# dizinleri yakalamaz (once /data/ yazilmasinin sebebi buydu).
+# NOT: .gitignore satir sonu yorumu DESTEKLEMEZ — "#" yalnizca satir basinda
+# yorumdur; desenin yanina yazilirsa desenin parcasi olur ve kural calismaz.
+#
+# data/training/       <- generate_training_data.py
+# data/raw/eht/        <- download_eht_data.py
+# data/raw/simulated/  <- generate_synthetic_data.py
+# data/visualizations/ <- visualize_samples.py
+data/training/
+data/raw/eht/
+data/raw/simulated/
+data/visualizations/
 *.npy
 *.uvfits
 *.fits

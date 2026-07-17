@@ -268,6 +268,54 @@ bucket'ı (server proxy üzerinden) ✓
   (`MLFLOW_SERVER_ALLOWED_HOSTS`) **port dahil** eşleşir; ileride NPM arkasına
   domain'le alınırsa domain listeye eklenmeli, yoksa 403.
 
+## 11. DVC Deposu (16 Temmuz 2026)
+
+Data squad talebi üzerine DVC remote'u için `dvc-cache` bucket'ı açıldı. Kullanım
+rehberi: [`DVC.md`](DVC.md). Tamamı **elle, bir kez** — bucket/kullanıcı/policy
+MinIO'nun iç verisidir, Kubernetes objesi değildir, GitOps'a girmez.
+
+```bash
+mc mb dh/dvc-cache
+mc admin user add dh dvc '<parola>'
+mc admin policy create dh dvc-rw /tmp/dvc-rw.json      # s3:* → dvc-cache + dvc-cache/*
+mc admin policy attach dh dvc-rw --user dvc
+mc admin policy create dh dvc-read /tmp/dvc-read.json  # ListBucket → bucket, GetObject → /*
+mc admin policy attach dh dvc-read --user ml-team
+```
+
+- **`ml-team`'e ayrı policy eklendi, `ml-read`'e DOKUNULMADI.** MinIO bir kullanıcıdaki
+  policy'leri birleştirir (`PolicyName: dvc-read,ml-read`). Çalışan bir policy'yi
+  düzenlemek yerine ikincisini eklemek, ML ekibinin veri erişimini riske atmadan
+  genişletmenin yolu. Yeni okuyucu gerekirse aynı yöntem.
+- **Policy'lerde iki ARN da yazılı** (`dvc-cache` **ve** `dvc-cache/*`) — Hata #8'in
+  dersi: bucket ARN'ı olmadan `ListBucket` çalışmaz.
+- **Doğrulama (`dvc` kullanıcısı, 3 yönlü):** yazma ✓ · listeleme ✓ · kapsam dışı
+  (`datasets`) reddi ✓. `ml-team` tarafı `policy info` ile içerik doğrulandı; uçtan
+  uca testi ML ekibi ilk `dvc pull`'da yapacak.
+- **Repo tarafında iki engel bulundu ve aynı PR'da düzeltildi** (MinIO ile ilgisi yok):
+  1. `pyproject.toml` `"dvc>=3.59.0"` diyordu — S3 için `[s3]` extra'sı şart, yoksa
+     `dvc push` → `missing dependency: dvc-s3`. → `dvc[s3]>=3.59.0`
+  2. Kökteki `.gitignore`'da `/data/` **tüm** `data/` klasörünü engelliyordu; DVC'nin
+     Git'e koyması gereken `data/*.dvc` pointer dosyaları dahil — yani `git add
+     data/training.dvc` sessizce hiçbir şey yapmıyordu. Bir dizin `/data/` ile hariç
+     tutulduğunda içindekiler `!` ile geri alınamaz, o yüzden negasyon değil **üretim
+     çıktılarının tek tek listelenmesi** gerekti (`data/training/`, `data/raw/eht/`,
+     `data/raw/simulated/`, `data/visualizations/`). Desenlerdeki ortadaki `/` sayesinde
+     kural yine köke sabit — `infra/k8s/data` yakalanmıyor (bkz. §8'deki eski tuzak).
+
+  (Airflow/DVC commit'i 16 Temmuz'da eklenip aynı gün revert edildi; o commit `.gitignore`
+  düzeltmesini içeriyordu, revert onu da geri aldı.)
+
+- **`.gitignore` tuzağı — satır sonu yorumu yok:** Düzeltmenin ilk halinde desenlerin
+  yanına `data/training/  # aciklama` diye yorum yazılmıştı. `.gitignore`'da `#`
+  **yalnızca satır başında** yorumdur; desenin yanında desenin parçası olur ve kural
+  sessizce hiçbir şeyle eşleşmez. `*.npy`/`*.uvfits` kuralları veriyi yine yakaladığı
+  için sorun görünmüyordu — yalnızca uzantı kuralı olmayan `data/visualizations/*.png`
+  açığa çıkardı. **Ders:** `.gitignore` değişikliğini `git check-ignore -v` ile, hem
+  engellenmeli hem engellenmemeli dosyalarla test et.
+- **Disk notu:** DVC cache veriyi çoğaltır ve MinIO eğitim setiyle aynı fiziksel diskte
+  yaşıyor — 20 GiB'lık set DVC'ye girerse `dvc-cache` de o boyuta ulaşır.
+
 ---
 
 ## Karşılaşılan Hatalar: Sebep ve Çözüm
