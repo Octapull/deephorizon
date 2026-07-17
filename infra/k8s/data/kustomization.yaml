@@ -5,3 +5,7 @@ resources:
   - namespace.yaml
   - minio-statefulset.yaml
   - minio-service.yaml
+  # Airflow'un metadata DB'si. Airflow'un kendisi Helm chart'iyla gelir
+  # (infra/k8s/apps/airflow.yaml) — chart'in Bitnami Postgres'i kirik oldugu icin
+  # veritabanini biz saglıyoruz.
+  - airflow-postgres.yaml
