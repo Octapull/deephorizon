@@ -7,7 +7,6 @@ doğrular, DVC ile izlemeye alır ve MinIO'ya yükler.
 Tetikleme : Manuel (schedule=None)
 Idempotency: generate_training_data.py mevcut dosyaları üzerine yazar;
              mc mirror --overwrite sadece değişenleri yükler.
-Sahibi     : Stajyer 1
 
 NOT — DVC:
     dvc add data/training çalıştırılır ancak dvc push YOK.
