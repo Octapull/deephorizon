@@ -7,7 +7,7 @@ dosya varlığı ve sayısını doğrular, MinIO raw/eht/ bucket'ına yükler.
 Tetikleme : Manuel (schedule=None)
 Idempotency: download_eht_data.py mevcut dosyaları atlar;
              mc mirror --overwrite sadece değişenleri yükler.
-Sahibi     : Stajyer 1
+
 
 NOT — DVC:
     dvc add data/raw/eht çalıştırılır ancak dvc push YOK.
