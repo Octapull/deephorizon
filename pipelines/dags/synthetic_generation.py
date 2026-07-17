@@ -7,7 +7,7 @@ eht-imaging kütüphanesi ile fiziğe dayalı 128×128 clean/degraded çiftleri
 Tetikleme : Manuel (schedule=None)
 Idempotency: generate_synthetic_data.py mevcut dosyaların üzerine yazar;
              mc mirror --overwrite sadece değişenleri yükler.
-Sahibi     : Stajyer 2
+
 
 NOT — DVC:
     dvc add data/raw/simulated çalıştırılır ancak dvc push YOK.
