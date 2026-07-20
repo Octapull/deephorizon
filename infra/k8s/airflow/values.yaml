@@ -14,10 +14,16 @@
 
 airflowVersion: "3.2.0"
 defaultAirflowTag: "3.2.0"
+# Ozel imaj: stok apache/airflow:3.2.0 + ehtim, astropy, mc, dvc[s3],
+# great-expectations. DAG task'lari bu araclari cagiriyor; stok imajda yoklar.
+# Build: infra/docker/airflow.Dockerfile
+# MicroK8s registry addon'una push edildi (localhost:32000).
+# Etiket TARIH — `latest` KULLANMA: Kubernetes ayni etiketi yeniden cekmez,
+# guncelleme sessizce uygulanmaz. Yeni imaj = yeni tarih etiketi.
 images:
   airflow:
-    repository: apache/airflow
-    tag: "3.2.0"
+    repository: localhost:32000/deephorizon-airflow
+    tag: "2026-07-20"
 
 # Tek node — Celery'nin getirdigi Redis + ayri worker pod'lari gereksiz.
 executor: LocalExecutor
@@ -26,8 +32,10 @@ executor: LocalExecutor
 # edilemez ve UI'de gorunmezler. Parola burada YOK — kod onu runtime'da
 # Airflow Variable `minio_data_pipeline_secret`'tan okuyor.
 env:
+  # YAZILABILIR workspace (git-sync klonu salt-okunur; scriptler data/ altina
+  # yaziyor). scheduler.extraInitContainers repoyu buraya klonluyor.
   - name: DEEPHORIZON_ROOT
-    value: /opt/airflow/dags/repo
+    value: /opt/airflow/workspace
   - name: MINIO_ENDPOINT
     value: http://minio.deephorizon-data.svc:9000
   - name: MINIO_USER
@@ -65,6 +73,44 @@ createUserJob:
 # iclerindeki uretilmis parola render ciktisiyla repoya girmis oluyor.
 redis:
   enabled: false
+
+# LocalExecutor'da task'lar scheduler pod'unda kosar; yazilabilir workspace
+# buraya baglanir. (git-sync ayni pod'a DAG'lari salt-okunur getirmeye devam eder.)
+scheduler:
+  # PVC'yi /opt/airflow/workspace'e bagla (DEEPHORIZON_ROOT bunu gosteriyor).
+  extraVolumes:
+    - name: workspace
+      persistentVolumeClaim:
+        claimName: airflow-workspace
+  extraVolumeMounts:
+    - name: workspace
+      mountPath: /opt/airflow/workspace
+  # Pod her basladiginda workspace'i repoyla doldurur/gunceller. Ilk seferde
+  # klonlar, sonra ff-only pull yapar. Boylece scriptler + data + .dvc ayni
+  # yazilabilir kokte olur. Ozel imaj git ve araclari icerir.
+  extraInitContainers:
+    - name: workspace-clone
+      image: localhost:32000/deephorizon-airflow:2026-07-20
+      command:
+        - bash
+        - -ec
+        - |
+          REPO=https://github.com/Octapull/deephorizon.git
+          DST=/opt/airflow/workspace
+          # PVC root sahipliginde gelir, git uid 50000 ile kosar -> "dubious
+          # ownership". safe.directory'yi her komuta -c ile gomuyoruz (global
+          # config dosyasina guvenmek yerine, kursun gecirmez).
+          SAFE="-c safe.directory=*"
+          if [ -d "$DST/.git" ]; then
+            git $SAFE -C "$DST" fetch --depth 1 origin main
+            git $SAFE -C "$DST" reset --hard origin/main
+          else
+            git $SAFE clone --depth 1 "$REPO" "$DST"
+          fi
+          echo "workspace hazir: $(git $SAFE -C "$DST" rev-parse --short HEAD)"
+      volumeMounts:
+        - name: workspace
+          mountPath: /opt/airflow/workspace
 
 # Bos birakilirsa chart uretir ve her render'da degistirir; fernet-key degisirse
 # DB'deki sifreli Variable/Connection'lar kalici olarak okunamaz olur.

@@ -9,3 +9,5 @@ resources:
   # (infra/k8s/apps/airflow.yaml) — chart'in Bitnami Postgres'i kirik oldugu icin
   # veritabanini biz saglıyoruz.
   - airflow-postgres.yaml
+  # Airflow task'larinin yazilabilir calisma alani (git-sync klonu salt-okunur).
+  - airflow-workspace-pvc.yaml
