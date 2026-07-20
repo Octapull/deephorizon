@@ -42,6 +42,30 @@ postgresql:
 data:
   metadataSecretName: airflow-db-credentials
 
+# Helm hook'lari KAPALI — Argo CD ile birlikte kilitlenme yaratiyorlar:
+# chart varsayilani `helm.sh/hook: post-install` -> Argo CD bunu PostSync sayar
+# ("her sey saglikli olunca calistir"), ama pod'larin init container'i
+# migration'i bekledigi icin hicbir sey saglikli olmuyor -> job hic olusmuyor.
+# false: Job'lar normal kaynak olur, Argo CD hepsini ayni anda uygular,
+# migration kosar, init container'lar beklemeyi birakir.
+migrateDatabaseJob:
+  useHelmHooks: false
+
+# Varsayilan admin kullanicisi KAPALI. Chart onu `-u admin -p admin` seklinde
+# job argumanina duz metin yaziyor; bu repo public oldugu icin parola GitHub'da
+# herkese acik olurdu. Kullanici elle, kasadaki guclu parolayla olusturuluyor:
+#   kubectl exec -n deephorizon-data deploy/airflow-api-server -- \
+#     airflow users create -r Admin -u admin -e <mail> -f admin -l user -p '<parola>'
+createUserJob:
+  enabled: false
+  useHelmHooks: false
+
+# LocalExecutor kullaniyoruz; Redis'e ihtiyac yok. Kapatilmazsa chart iki
+# kullanilmayan secret (airflow-redis-password, airflow-broker-url) uretiyor ve
+# iclerindeki uretilmis parola render ciktisiyla repoya girmis oluyor.
+redis:
+  enabled: false
+
 # Bos birakilirsa chart uretir ve her render'da degistirir; fernet-key degisirse
 # DB'deki sifreli Variable/Connection'lar kalici olarak okunamaz olur.
 fernetKeySecretName: airflow-keys

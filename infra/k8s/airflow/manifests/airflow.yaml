@@ -1692,6 +1692,115 @@ spec:
           requests:
             storage: 100Gi
 ---
+# Source: airflow/templates/jobs/migrate-database-job.yaml
+################################
+## Airflow Run Migrations
+#################################
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: airflow-run-airflow-migrations
+  labels:
+    tier: airflow
+    component: run-airflow-migrations
+    release: airflow
+    chart: "airflow-1.21.0"
+    heritage: Helm
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: run-airflow-migrations
+        release: airflow
+    spec:
+      securityContext: 
+        
+        runAsUser: 50000
+        fsGroup: 0
+      restartPolicy: OnFailure
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      serviceAccountName: "airflow-migrate-database-job"
+      imagePullSecrets:
+        []
+      containers:
+        - name: run-airflow-migrations
+          image: apache/airflow:3.2.0
+          imagePullPolicy: IfNotPresent
+          securityContext: 
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - bash
+            - -c
+            - |-
+              exec \
+              airflow db migrate
+          envFrom:          
+            []
+          env:          
+            # Dynamically created environment variables
+            - name: DEEPHORIZON_ROOT
+              value: "/opt/airflow/dags/repo"
+            - name: MINIO_ENDPOINT
+              value: "http://minio.deephorizon-data.svc:9000"
+            - name: MINIO_USER
+              value: "data-pipeline"
+            - name: MINIO_ALIAS
+              value: "dh"
+            # Dynamically created secret envs
+            # Extra env
+            - name: PYTHONUNBUFFERED
+              value: "1"          
+            # Hard Coded Airflow Envs
+            - name: AIRFLOW_HOME
+              value: /opt/airflow
+            - name: AIRFLOW__CORE__FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-keys
+                  key: fernet-key
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-db-credentials
+                  key: connection
+            - name: AIRFLOW_CONN_AIRFLOW_DB
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-db-credentials
+                  key: connection
+            - name: AIRFLOW__API__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-keys
+                  key: api-secret-key
+          resources:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: "/opt/airflow/airflow.cfg"
+              subPath: airflow.cfg
+              readOnly: true
+            - name: config
+              mountPath: "/opt/airflow/config/airflow_local_settings.py"
+              subPath: airflow_local_settings.py
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: airflow-config
+---
 # Source: airflow/templates/api-server/api-server-hpa.yaml
 ################################
 ## Airflow Api-Server HPA
@@ -1786,6 +1895,11 @@ spec:
 ######################################
 ## Airflow Flower ServiceAccount
 ######################################
+---
+# Source: airflow/templates/jobs/create-user-job.yaml
+##########################
+## Airflow Create User Job
+##########################
 ---
 # Source: airflow/templates/limitrange.yaml
 ################################
@@ -2103,26 +2217,6 @@ spec:
 ################################
 ## Airflow Redis Password Secret
 #################################
-# If passwordSecretName is not set, we will either use the set password, or use the generated one
-apiVersion: v1
-kind: Secret
-metadata:
-  name: airflow-redis-password
-  labels:
-    tier: airflow
-    component: redis
-    release: airflow
-    chart: "airflow-1.21.0"
-    heritage: Helm
-  annotations:
-    "helm.sh/hook": "pre-install"
-    "helm.sh/hook-delete-policy": "before-hook-creation"
-    "helm.sh/hook-weight": "0"
-type: Opaque
-data:
-  password: "VUU2dzJVVXJsYg=="
----
-# Source: airflow/templates/secrets/redis-secrets.yaml
 ##################################
 ## Airflow Redis Connection Secret
 ##################################
@@ -2142,241 +2236,4 @@ metadata:
     "helm.sh/hook-weight": "0"
 type: Opaque
 data:
-  connection: "cmVkaXM6Ly86VUU2dzJVVXJsYkBhaXJmbG93LXJlZGlzOjYzNzkvMA=="
----
-# Source: airflow/templates/jobs/create-user-job.yaml
-##########################
-## Airflow Create User Job
-##########################
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: airflow-create-user
-  labels:
-    tier: airflow
-    component: create-user-job
-    release: airflow
-    chart: "airflow-1.21.0"
-    heritage: Helm
-  annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-    helm.sh/hook-weight: "2"
-spec:
-  ttlSecondsAfterFinished: 300
-  template:
-    metadata:
-      labels:
-        tier: airflow
-        component: create-user-job
-        release: airflow
-    spec:
-      securityContext: 
-        
-        runAsUser: 50000
-        fsGroup: 0
-      restartPolicy: OnFailure
-      nodeSelector:
-        {}
-      affinity:
-        {}
-      tolerations:
-        []
-      topologySpreadConstraints:
-        []
-      serviceAccountName: "airflow-create-user-job"
-      imagePullSecrets:
-        []
-      containers:
-        - name: create-user
-          image: apache/airflow:3.2.0
-          imagePullPolicy: IfNotPresent
-          securityContext: 
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          args: 
-            - bash
-            - -c
-            - |-
-              exec \
-              airflow users create "$@"
-            - --
-            - -r
-            - 'Admin'
-            - -u
-            - 'admin'
-            - -e
-            - 'admin@example.com'
-            - -f
-            - 'admin'
-            - -l
-            - 'user'
-            - -p
-            - 'admin'
-          envFrom:          
-            []
-          env:          
-            # Dynamically created environment variables
-            - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
-            - name: MINIO_ENDPOINT
-              value: "http://minio.deephorizon-data.svc:9000"
-            - name: MINIO_USER
-              value: "data-pipeline"
-            - name: MINIO_ALIAS
-              value: "dh"
-            # Dynamically created secret envs
-            # Extra env          
-            # Hard Coded Airflow Envs
-            - name: AIRFLOW_HOME
-              value: /opt/airflow
-            - name: AIRFLOW__CORE__FERNET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-keys
-                  key: fernet-key
-            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-db-credentials
-                  key: connection
-            - name: AIRFLOW_CONN_AIRFLOW_DB
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-db-credentials
-                  key: connection
-            - name: AIRFLOW__API__SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-keys
-                  key: api-secret-key          
-          resources:
-            {}
-          volumeMounts:
-            - name: config
-              mountPath: "/opt/airflow/airflow.cfg"
-              subPath: airflow.cfg
-              readOnly: true
-            - name: config
-              mountPath: "/opt/airflow/config/airflow_local_settings.py"
-              subPath: airflow_local_settings.py
-              readOnly: true
-      volumes:
-        - name: config
-          configMap:
-            name: airflow-config
----
-# Source: airflow/templates/jobs/migrate-database-job.yaml
-################################
-## Airflow Run Migrations
-#################################
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: airflow-run-airflow-migrations
-  labels:
-    tier: airflow
-    component: run-airflow-migrations
-    release: airflow
-    chart: "airflow-1.21.0"
-    heritage: Helm
-  annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-    helm.sh/hook-weight: "1"
-spec:
-  ttlSecondsAfterFinished: 300
-  template:
-    metadata:
-      labels:
-        tier: airflow
-        component: run-airflow-migrations
-        release: airflow
-    spec:
-      securityContext: 
-        
-        runAsUser: 50000
-        fsGroup: 0
-      restartPolicy: OnFailure
-      nodeSelector:
-        {}
-      affinity:
-        {}
-      tolerations:
-        []
-      topologySpreadConstraints:
-        []
-      serviceAccountName: "airflow-migrate-database-job"
-      imagePullSecrets:
-        []
-      containers:
-        - name: run-airflow-migrations
-          image: apache/airflow:3.2.0
-          imagePullPolicy: IfNotPresent
-          securityContext: 
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          args:
-            - bash
-            - -c
-            - |-
-              exec \
-              airflow db migrate
-          envFrom:          
-            []
-          env:          
-            # Dynamically created environment variables
-            - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
-            - name: MINIO_ENDPOINT
-              value: "http://minio.deephorizon-data.svc:9000"
-            - name: MINIO_USER
-              value: "data-pipeline"
-            - name: MINIO_ALIAS
-              value: "dh"
-            # Dynamically created secret envs
-            # Extra env
-            - name: PYTHONUNBUFFERED
-              value: "1"          
-            # Hard Coded Airflow Envs
-            - name: AIRFLOW_HOME
-              value: /opt/airflow
-            - name: AIRFLOW__CORE__FERNET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-keys
-                  key: fernet-key
-            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-db-credentials
-                  key: connection
-            - name: AIRFLOW_CONN_AIRFLOW_DB
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-db-credentials
-                  key: connection
-            - name: AIRFLOW__API__SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-keys
-                  key: api-secret-key
-          resources:
-            {}
-          volumeMounts:
-            - name: config
-              mountPath: "/opt/airflow/airflow.cfg"
-              subPath: airflow.cfg
-              readOnly: true
-            - name: config
-              mountPath: "/opt/airflow/config/airflow_local_settings.py"
-              subPath: airflow_local_settings.py
-              readOnly: true
-      volumes:
-        - name: config
-          configMap:
-            name: airflow-config
+  connection: "JSFzKDxuaWw+KQ=="
