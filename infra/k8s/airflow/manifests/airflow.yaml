@@ -485,6 +485,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -576,6 +578,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -712,6 +716,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -828,6 +834,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -1063,6 +1071,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -1185,6 +1195,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -1467,6 +1479,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -1583,6 +1597,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env          
             # Hard Coded Airflow Envs
@@ -1738,7 +1754,6 @@ metadata:
     chart: "airflow-1.21.0"
     heritage: Helm
 spec:
-  ttlSecondsAfterFinished: 300
   template:
     metadata:
       labels:
@@ -1789,6 +1804,8 @@ spec:
               value: "data-pipeline"
             - name: MINIO_ALIAS
               value: "dh"
+            - name: PYTHONPATH
+              value: "/opt/airflow/dags/repo/pipelines/plugins"
             # Dynamically created secret envs
             # Extra env
             - name: PYTHONUNBUFFERED

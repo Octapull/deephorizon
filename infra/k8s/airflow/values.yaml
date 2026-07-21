@@ -42,6 +42,9 @@ env:
     value: data-pipeline
   - name: MINIO_ALIAS
     value: dh
+  # DAG'lar pipelines/plugins/deephorizon_utils.py'yi import ediyor; o klasoru yola ekler.
+  - name: PYTHONPATH
+    value: /opt/airflow/dags/repo/pipelines/plugins
 
 # Chart'in Bitnami Postgres'i kullanilmiyor (imaji Docker Hub'dan kaldirildi).
 # Yerine: infra/k8s/data/airflow-postgres.yaml
@@ -58,6 +61,8 @@ data:
 # migration kosar, init container'lar beklemeyi birakir.
 migrateDatabaseJob:
   useHelmHooks: false
+  # TTL kapali: yoksa Argo CD ile 5 dk'da bir job yeniden olusma dongusu.
+  ttlSecondsAfterFinished: ~
 
 # Varsayilan admin kullanicisi KAPALI. Chart onu `-u admin -p admin` seklinde
 # job argumanina duz metin yaziyor; bu repo public oldugu icin parola GitHub'da

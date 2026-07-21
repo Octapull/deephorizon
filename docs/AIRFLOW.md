@@ -56,18 +56,24 @@ oraya 20 GB veri yazamaz. Bu yüzden ayrı bir yazılabilir PVC var:
 `DEEPHORIZON_ROOT` buraya işaret eder → script'ler yazılabilir kökten çalışır,
 `data/`'ya yazar, `dvc add` çalışır. **Data squad'ın kod değişikliği gerekmez.**
 
-### MinIO parolası — Airflow Variable
-`MINIO_SECRET` env'de **yok** (güvenlik). DAG'lar parolayı Airflow Variable'dan
-okuyor. Parola `data-pipeline` kullanıcısınınki — **DevOps'ta** (kasada), o yüzden
-Variable'ı **DevOps tanımlar** (bir kez):
+### Parolalar — Airflow Variable (env'de YOK, güvenlik)
+DAG'lar iki parolayı Airflow Variable'dan okuyor. İkisi de MinIO kullanıcı parolası,
+**DevOps'ta** (kasada) — o yüzden Variable'ları **DevOps tanımlar** (bir kez):
+
+| Variable | Hangi parola | Kullanan |
+|:---|:---|:---|
+| `minio_data_pipeline_secret` | `data-pipeline` kullanıcısı | upload task'ları (MinIO'ya yazma) |
+| `dvc_secret` | `dvc` kullanıcısı | `dvc_track` → `dvc push` (dvc-cache'e) |
 
 ```bash
 kubectl exec -n deephorizon-data airflow-scheduler-0 -c scheduler -- \
   airflow variables set minio_data_pipeline_secret '<data-pipeline-parolasi>'
+kubectl exec -n deephorizon-data airflow-scheduler-0 -c scheduler -- \
+  airflow variables set dvc_secret '<dvc-parolasi>'
 ```
 
-> **Bu yapılmadan upload task'ları çalışmaz** ("MinIO secret bulunamadı" ile düşer).
-> Airflow ayağa kalkar ve DAG'lar görünür, ama veri MinIO'ya gitmez.
+> Eksikse ilgili task düşer: `minio_...` yoksa upload, `dvc_secret` yoksa `dvc push`.
+> Airflow yine ayağa kalkar ve DAG'lar görünür.
 
 ## DAG'lar
 
@@ -80,15 +86,14 @@ kubectl exec -n deephorizon-data airflow-scheduler-0 -c scheduler -- \
 Hepsi manuel tetiklenir (`schedule=None`), idempotent. Ayrıntı:
 `pipelines/README.md`.
 
-## Uçtan uca çalışması için kalan işler
+## Durum — uçtan uca test edildi
 
-Altyapı hazır (imaj, workspace, env, DAG'lar görünüyor). Task'ların uçtan uca
-çalışması için:
+`synthetic_generation` DAG'ı gerçek veriyle baştan sona koşuldu (`state=success`):
+üret → doğrula (GE) → MinIO'ya yükle → `dvc add` → `dvc push` (2021 dosya dvc-cache'e).
+Yani özel imaj, workspace, iki Variable ve DVC zinciri çalışır durumda.
 
-| İş | Kim | Not |
-|:---|:---|:---|
-| `minio_data_pipeline_secret` Variable'ı set et | **DevOps** | Yukarıdaki komut. Olmadan upload düşer |
-| İsteğe bağlı: `dvc push`'ı aç | **Data squad** | `dvc_track` şu an sadece `dvc add` yapıyor; remote hazır (`docs/DVC.md`) |
+**Yeni Airflow için kurulum tekrarı gerekirse tek yapılacak:** iki Variable'ı set etmek
+(yukarıdaki komutlar). Gerisi GitOps'tan gelir.
 
 ## Sınırlar / notlar
 
