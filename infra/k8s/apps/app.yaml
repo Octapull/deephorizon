@@ -1,0 +1,21 @@
+# App squad Application: infra/k8s/app/ altindaki kustomize kaynagini izler.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deephorizon-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
