@@ -152,8 +152,8 @@ data:
     multi_namespace_mode = False
     namespace = deephorizon-data
     pod_template_file = /opt/airflow/pod_templates/pod_template_file.yaml
-    worker_container_repository = apache/airflow
-    worker_container_tag = 3.2.0
+    worker_container_repository = localhost:32000/deephorizon-airflow
+    worker_container_tag = 2026-07-20
     
     [logging]
     colored_console_log = False
@@ -421,7 +421,7 @@ spec:
       annotations:
         checksum/metadata-secret: b2fe937560e9635aeb01fce9100c2f836c5880f81c802565ce95fbcc8a56da4c
         checksum/pgbouncer-config-secret: 1dae2adc757473469686d37449d076b0c82404f61413b58ae68b3c5e99527688
-        checksum/airflow-config: a25c8f7a14c3bd131544fc07c42c611f43daec94e1d8fed0fafdbf425af3479a
+        checksum/airflow-config: 5427dbc5f56a06a622993ab2e31c17bd74f40f7dcb504601d64aaa936ba12748
         checksum/extra-configmaps: e862ea47e13e634cf17d476323784fa27dac20015550c230953b526182f5cac8
         checksum/extra-secrets: e9582fdd622296c976cbc10a5ba7d6702c28a24fe80795ea5b84ba443a56c827
     spec:
@@ -452,7 +452,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -478,7 +478,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -512,7 +512,7 @@ spec:
                   key: api-secret-key
       containers:
         - name: api-server
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -569,7 +569,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -646,7 +646,7 @@ spec:
       annotations:
         checksum/metadata-secret: b2fe937560e9635aeb01fce9100c2f836c5880f81c802565ce95fbcc8a56da4c
         checksum/pgbouncer-config-secret: 1dae2adc757473469686d37449d076b0c82404f61413b58ae68b3c5e99527688
-        checksum/airflow-config: a25c8f7a14c3bd131544fc07c42c611f43daec94e1d8fed0fafdbf425af3479a
+        checksum/airflow-config: 5427dbc5f56a06a622993ab2e31c17bd74f40f7dcb504601d64aaa936ba12748
         checksum/extra-configmaps: e862ea47e13e634cf17d476323784fa27dac20015550c230953b526182f5cac8
         checksum/extra-secrets: e9582fdd622296c976cbc10a5ba7d6702c28a24fe80795ea5b84ba443a56c827
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
@@ -679,7 +679,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -705,7 +705,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -789,7 +789,7 @@ spec:
             mountPath: /git
       containers:
         - name: dag-processor
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -821,7 +821,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -925,7 +925,7 @@ spec:
         - name: dag-processor-log-groomer
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -993,7 +993,7 @@ spec:
         checksum/metadata-secret: b2fe937560e9635aeb01fce9100c2f836c5880f81c802565ce95fbcc8a56da4c
         checksum/result-backend-secret: 98a68f230007cfa8f5d3792e1aff843a76b0686409e4a46ab2f092f6865a1b71
         checksum/pgbouncer-config-secret: 1dae2adc757473469686d37449d076b0c82404f61413b58ae68b3c5e99527688
-        checksum/airflow-config: a25c8f7a14c3bd131544fc07c42c611f43daec94e1d8fed0fafdbf425af3479a
+        checksum/airflow-config: 5427dbc5f56a06a622993ab2e31c17bd74f40f7dcb504601d64aaa936ba12748
         checksum/extra-configmaps: e862ea47e13e634cf17d476323784fa27dac20015550c230953b526182f5cac8
         checksum/extra-secrets: e9582fdd622296c976cbc10a5ba7d6702c28a24fe80795ea5b84ba443a56c827
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
@@ -1026,7 +1026,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1044,6 +1044,8 @@ spec:
               mountPath: "/opt/airflow/config/airflow_local_settings.py"
               subPath: airflow_local_settings.py
               readOnly: true
+            - mountPath: /opt/airflow/workspace
+              name: workspace
           args:          
             - airflow
             - db
@@ -1054,7 +1056,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -1136,9 +1138,31 @@ spec:
           volumeMounts:
           - name: dags
             mountPath: /git
+        - command:
+          - bash
+          - -ec
+          - |
+            REPO=https://github.com/Octapull/deephorizon.git
+            DST=/opt/airflow/workspace
+            # PVC root sahipliginde gelir, git uid 50000 ile kosar -> "dubious
+            # ownership". safe.directory'yi her komuta -c ile gomuyoruz (global
+            # config dosyasina guvenmek yerine, kursun gecirmez).
+            SAFE="-c safe.directory=*"
+            if [ -d "$DST/.git" ]; then
+              git $SAFE -C "$DST" fetch --depth 1 origin main
+              git $SAFE -C "$DST" reset --hard origin/main
+            else
+              git $SAFE clone --depth 1 "$REPO" "$DST"
+            fi
+            echo "workspace hazir: $(git $SAFE -C "$DST" rev-parse --short HEAD)"
+          image: localhost:32000/deephorizon-airflow:2026-07-20
+          name: workspace-clone
+          volumeMounts:
+          - mountPath: /opt/airflow/workspace
+            name: workspace
       containers:
         - name: scheduler
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1154,7 +1178,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -1238,7 +1262,9 @@ spec:
               readOnly: true
             - name: dags
               mountPath: /opt/airflow/dags
-              readOnly: True        
+              readOnly: True
+            - mountPath: /opt/airflow/workspace
+              name: workspace        
         - name: git-sync
           image: registry.k8s.io/git-sync/git-sync:v4.4.2
           imagePullPolicy: IfNotPresent
@@ -1299,7 +1325,7 @@ spec:
         - name: scheduler-log-groomer
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1319,6 +1345,8 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: "/opt/airflow/logs"
+            - mountPath: /opt/airflow/workspace
+              name: workspace
       volumes:
         - name: config
           configMap:
@@ -1326,6 +1354,9 @@ spec:
         - name: dags
           emptyDir:
             {}
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: airflow-workspace
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
@@ -1368,7 +1399,7 @@ spec:
       annotations:
         checksum/metadata-secret: b2fe937560e9635aeb01fce9100c2f836c5880f81c802565ce95fbcc8a56da4c
         checksum/pgbouncer-config-secret: 1dae2adc757473469686d37449d076b0c82404f61413b58ae68b3c5e99527688
-        checksum/airflow-config: a25c8f7a14c3bd131544fc07c42c611f43daec94e1d8fed0fafdbf425af3479a
+        checksum/airflow-config: 5427dbc5f56a06a622993ab2e31c17bd74f40f7dcb504601d64aaa936ba12748
         checksum/extra-configmaps: e862ea47e13e634cf17d476323784fa27dac20015550c230953b526182f5cac8
         checksum/extra-secrets: e9582fdd622296c976cbc10a5ba7d6702c28a24fe80795ea5b84ba443a56c827
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
@@ -1401,7 +1432,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1429,7 +1460,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -1513,7 +1544,7 @@ spec:
             mountPath: /git
       containers:
         - name: triggerer
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1545,7 +1576,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
@@ -1654,7 +1685,7 @@ spec:
         - name: triggerer-log-groomer
           resources:
             {}
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1733,7 +1764,7 @@ spec:
         []
       containers:
         - name: run-airflow-migrations
-          image: apache/airflow:3.2.0
+          image: localhost:32000/deephorizon-airflow:2026-07-20
           imagePullPolicy: IfNotPresent
           securityContext: 
             allowPrivilegeEscalation: false
@@ -1751,7 +1782,7 @@ spec:
           env:          
             # Dynamically created environment variables
             - name: DEEPHORIZON_ROOT
-              value: "/opt/airflow/dags/repo"
+              value: "/opt/airflow/workspace"
             - name: MINIO_ENDPOINT
               value: "http://minio.deephorizon-data.svc:9000"
             - name: MINIO_USER
