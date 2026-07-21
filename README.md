@@ -1078,6 +1078,7 @@ Developer → kubeseal encrypt → SealedSecret (committed to Git)
 | `inference-api-key` | `deephorizon-ml` | gRPC inference auth token |
 | `grafana-admin` | `deephorizon-monitor` | Grafana admin password |
 | `github-registry` | `deephorizon-app` | Container image pull secret |
+| `redis-credentials` | `deephorizon-app` | Redis password |
 
 ### Tooling
 
