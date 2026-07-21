@@ -1,7 +1,6 @@
-from pathlib import Path
-
 import torch
 
+from services.ml.checkpoints.checkpoint import save_checkpoint
 from services.ml.data.dataloader import create_train_val_loaders
 from services.ml.losses.loss import get_loss
 from services.ml.models.unet import UNet
@@ -33,12 +32,6 @@ def train(
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=learning_rate,
-    )
-
-    output_dir = Path(output_dir)
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
     )
 
     best_val_loss = float("inf")
@@ -121,29 +114,26 @@ def train(
 
         # CHECKPOINT
 
-
-        checkpoint = {
-            "epoch": epoch + 1,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "train_loss": train_loss,
-            "val_loss": val_loss,
-        }
-
-        torch.save(
-            checkpoint,
-            output_dir / f"epoch_{epoch + 1}.pt",
+        save_checkpoint(
+            model=model,
+            optimizer=optimizer,
+            epoch=epoch + 1,
+            train_loss=train_loss,
+            val_loss=val_loss,
+            checkpoint_path=output_dir / f"epoch_{epoch + 1}.pt",
         )
-
-        # BEST MODEL
 
         if val_loss < best_val_loss:
 
             best_val_loss = val_loss
 
-            torch.save(
-                checkpoint,
-                output_dir / "best_model.pt",
+            save_checkpoint(
+                model=model,
+                optimizer=optimizer,
+                epoch=epoch + 1,
+                train_loss=train_loss,
+                val_loss=val_loss,
+                checkpoint_path=output_dir / "best_model.pt",
             )
 
             print(
