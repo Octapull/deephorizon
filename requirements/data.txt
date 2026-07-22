@@ -8,3 +8,6 @@ ehtim>=1.2.10
 astropy>=7.0.0
 dvc>=3.59.0
 great-expectations>=1.4.0
+
+boto3==1.34.0
+python-dotenv==1.0.1
