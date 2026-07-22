@@ -15,7 +15,9 @@ spec:
     namespace: deephorizon-ml
   syncPolicy:
     automated:
-      prune: true
+      # Technology-based directory migration temporarily moves PostgreSQL to
+      # a separate Argo CD Application. Keep existing workloads during adoption.
+      prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
