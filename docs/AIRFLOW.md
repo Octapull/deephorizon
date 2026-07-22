@@ -112,8 +112,8 @@ Yani özel imaj, workspace, iki Variable ve DVC zinciri çalışır durumda.
 | Manifest kaynağı | `infra/k8s/airflow/values.yaml` (render kaynağı) |
 | Uygulanan | `infra/k8s/airflow/manifests/airflow.yaml` (rendered) |
 | Argo CD app | `infra/k8s/apps/airflow.yaml` |
-| Postgres | `infra/k8s/data/airflow-postgres.yaml` |
-| Workspace PVC | `infra/k8s/data/airflow-workspace-pvc.yaml` |
+| Postgres | `infra/k8s/postgresql/airflow/postgres.yaml` |
+| Workspace PVC | `infra/k8s/airflow/workspace-pvc.yaml` |
 | Özel imaj | `infra/docker/airflow.Dockerfile` → `localhost:32000/deephorizon-airflow` |
 | Secret'lar | `airflow-db-credentials`, `airflow-keys` (SealedSecret) |
 | Log | `kubectl logs -n deephorizon-data airflow-scheduler-0 -c scheduler` |

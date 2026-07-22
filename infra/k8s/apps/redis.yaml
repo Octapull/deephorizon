@@ -1,23 +1,21 @@
-# ML squad Application: infra/k8s/ml/ altindaki kustomize kaynagini izler.
+# Redis Application: infra/k8s/redis/ altindaki kustomize kaynagini izler.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ml
+  name: app
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/Octapull/deephorizon.git
     targetRevision: main
-    path: infra/k8s/ml
+    path: infra/k8s/redis
   destination:
     server: https://kubernetes.default.svc
-    namespace: deephorizon-ml
+    namespace: deephorizon-app
   syncPolicy:
     automated:
-      # Technology-based directory migration temporarily moves PostgreSQL to
-      # a separate Argo CD Application. Keep existing workloads during adoption.
-      prune: false
+      prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true

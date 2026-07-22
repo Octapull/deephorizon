@@ -1,21 +1,23 @@
-# App squad Application: infra/k8s/app/ altindaki kustomize kaynagini izler.
+# MLflow Application: infra/k8s/mlflow/ altindaki kustomize kaynagini izler.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app
+  name: ml
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/Octapull/deephorizon.git
     targetRevision: main
-    path: infra/k8s/app
+    path: infra/k8s/mlflow
   destination:
     server: https://kubernetes.default.svc
-    namespace: deephorizon-app
+    namespace: deephorizon-ml
   syncPolicy:
     automated:
-      prune: true
+      # Technology-based directory migration temporarily moves PostgreSQL to
+      # a separate Argo CD Application. Keep existing workloads during adoption.
+      prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true

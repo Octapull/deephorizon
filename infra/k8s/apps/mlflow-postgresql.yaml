@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlflow-postgresql
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/postgresql/mlflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deephorizon-ml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

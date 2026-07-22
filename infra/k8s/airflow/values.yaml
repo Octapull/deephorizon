@@ -47,7 +47,7 @@ env:
     value: /opt/airflow/dags/repo/pipelines/plugins
 
 # Chart'in Bitnami Postgres'i kullanilmiyor (imaji Docker Hub'dan kaldirildi).
-# Yerine: infra/k8s/data/airflow-postgres.yaml
+# Yerine: infra/k8s/postgresql/airflow/postgres.yaml
 postgresql:
   enabled: false
 data:

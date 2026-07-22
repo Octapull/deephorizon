@@ -82,8 +82,10 @@ kalması normaldir — tek seferlik doğrulama job'ıdır.)
 
 ## 5. Sealed Secrets
 
-Amaç: secret'lar Git'e **şifrelenmiş** (`SealedSecret`) commit edilir; cluster'daki
-controller bunları normal `Secret`'a çözer. Kaynak kodda/`.env`'de secret yaşamaz.
+İlk kurulumda secret'lar Git'e şifrelenmiş (`SealedSecret`) olarak ekleniyordu;
+cluster'daki controller bunları normal `Secret`'a çözüyor. 22 Temmuz 2026'da
+SealedSecret YAML dosyaları Git'ten kaldırıldı ve erişimi kontrollü olarak Git
+dışında tutulmaya başlandı. Kaynak kodda/`.env`'de açık secret yaşamaz.
 
 ```bash
 microk8s helm3 repo add sealed-secrets https://bitnami.github.io/sealed-secrets   # bkz. Hata #2
@@ -198,10 +200,19 @@ Manifest yapısı `infra/k8s/` altına yazıldı ve `main`'e merge edildi:
 infra/k8s/
 ├── app-of-apps.yaml     # root Application → infra/k8s/apps'i izler (TEK elle apply)
 ├── apps/
-│   ├── data.yaml        # → infra/k8s/data (kustomize, auto-sync+prune+selfHeal)
-│   └── secrets.yaml     # → infra/k8s/secrets (SealedSecret'lar, recursive)
-├── data/                # deephorizon-data ns + MinIO (StatefulSet, 100Gi PVC, Service'ler)
-└── secrets/             # minio-credentials (SealedSecret)
+│   ├── airflow.yaml             # → infra/k8s/airflow
+│   ├── airflow-postgresql.yaml  # → infra/k8s/postgresql/airflow
+│   ├── redis.yaml               # → infra/k8s/redis
+│   ├── minio.yaml               # → infra/k8s/minio
+│   ├── mlflow.yaml              # → infra/k8s/mlflow
+│   ├── mlflow-postgresql.yaml   # → infra/k8s/postgresql/mlflow
+│   └── secrets.yaml             # → infra/k8s/secrets (prune kapalı)
+├── airflow/             # rendered Airflow kaynakları + workspace PVC
+├── minio/               # MinIO StatefulSet + Service'ler
+├── mlflow/              # MLflow Deployment + Service
+├── postgresql/          # Airflow ve MLflow PostgreSQL örnekleri
+├── redis/               # Redis Deployment + Service
+└── secrets/             # servis bazlı boş klasörler; Secret YAML Git dışında
 ```
 
 ```bash
@@ -218,11 +229,11 @@ kubectl apply -f https://raw.githubusercontent.com/Octapull/deephorizon/main/inf
   sudo ufw allow from 10.10.1.0/24 to any port 30900 proto tcp
   sudo ufw allow from 10.10.1.0/24 to any port 30901 proto tcp
   ```
-- **Yeni servis eklemenin reçetesi artık şu:** manifest'i `infra/k8s/<alan>/` altına yaz
-  → gerekiyorsa `infra/k8s/apps/<alan>.yaml` Application'ı ekle → secret'ları seal'leyip
-  `infra/k8s/secrets/`'a koy → PR → merge. Argo CD gerisini yapar. (MLflow bu reçeteyle
-  kurulacak — `deephorizon-ml` namespace'i, `mlflow` bucket'ı hazır bekliyor.)
-- `.gitignore` tuzağı: kök `data/` kuralı `infra/k8s/data/`'yı da yutuyordu; kural
+- **Yeni servis eklemenin reçetesi artık şu:** manifest'i
+  `infra/k8s/<teknoloji>/` altına yaz → gerekiyorsa `infra/k8s/apps/` altına bir
+  Application ekle → PR → merge. Secret YAML dosyaları Git'e eklenmez.
+- `.gitignore` tuzağı: kök `data/` kuralı o tarihteki `infra/k8s/data/` yolunu da
+  yutuyordu; kural
   köke sabitlendi (`/data/`).
 
 ## 9. Veri Katmanı: Bucket'lar, Kullanıcılar, İlk Eğitim Seti
@@ -248,8 +259,9 @@ Detaylı düzen ve ML erişim rehberi: [`docs/DATA.md`](DATA.md). Özet:
 
 ## 10. MLflow Devreye Alındı (15 Temmuz 2026)
 
-§8'deki reçetenin ilk gerçek kullanımı: `infra/k8s/ml/` (Postgres 17.5 StatefulSet +
-MLflow v3.13.0-full Deployment, imajlar pinli) + `apps/ml.yaml` + iki SealedSecret
+§8'deki reçetenin ilk gerçek kullanımı: bugün `infra/k8s/mlflow/` ve
+`infra/k8s/postgresql/mlflow/` altında bulunan Postgres 17.5 StatefulSet +
+MLflow v3.13.0-full Deployment (imajlar pinli) + `apps/mlflow.yaml` + iki SealedSecret
 PR ile merge edildi; Argo CD `deephorizon-ml`'i kendisi kurdu. Doğrulama uçtan uca
 smoke test ile: param/metric → Postgres, artifact upload+download → MinIO `mlflow`
 bucket'ı (server proxy üzerinden) ✓
@@ -301,7 +313,8 @@ mc admin policy attach dh dvc-read --user ml-team
      tutulduğunda içindekiler `!` ile geri alınamaz, o yüzden negasyon değil **üretim
      çıktılarının tek tek listelenmesi** gerekti (`data/training/`, `data/raw/eht/`,
      `data/raw/simulated/`, `data/visualizations/`). Desenlerdeki ortadaki `/` sayesinde
-     kural yine köke sabit — `infra/k8s/data` yakalanmıyor (bkz. §8'deki eski tuzak).
+     kural yine köke sabit — `infra/k8s/` altındaki teknoloji klasörleri yakalanmıyor
+     (bkz. §8'deki eski tuzak).
 
   (Airflow/DVC commit'i 16 Temmuz'da eklenip aynı gün revert edildi; o commit `.gitignore`
   düzeltmesini içeriyordu, revert onu da geri aldı.)
@@ -419,7 +432,7 @@ mc admin policy attach dh dvc-read --user ml-team
 - **Çözüm:** Şema bir kerelik pod'la bootstrap edildi — `SqlAlchemyStore(uri, ...)`
   instantiate etmek boş DB'de `create_all` + head'e migrate yapar; sonrasında
   `db upgrade` no-op. Kalıcı fix: init container tablo yoksa store init, varsa
-  `_upgrade_db` çalıştırıyor (`infra/k8s/ml/mlflow.yaml`).
+  `_upgrade_db` çalıştırıyor (`infra/k8s/mlflow/mlflow.yaml`).
 - **Ders:** "migrate" araçları bootstrap araçları değildir — ilk kurulum (boş DB) ve
   sürüm yükseltme ayrı senaryolardır; manifest'i ikisiyle de test et.
 

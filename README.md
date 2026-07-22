@@ -722,11 +722,14 @@ deephorizon/
 ├── infra/                                 # All deployment artifacts ⏳
 │   ├── k8s/
 │   │   ├── app-of-apps.yaml               #   Root Argo CD Application
-│   │   ├── data/                          #   Airflow, MinIO manifests (kustomize)
-│   │   ├── ml/                            #   MLflow, training Job, inference Deployment
-│   │   ├── app/                           #   Go API + Next.js (NodePort Services; NGINX Proxy Manager handles TLS off-cluster)
+│   │   ├── apps/                          #   Argo CD child Applications
+│   │   ├── airflow/                       #   Airflow manifests and workspace PVC
+│   │   ├── minio/                         #   MinIO StatefulSet and Services
+│   │   ├── mlflow/                        #   MLflow Deployment and Service
+│   │   ├── postgresql/                    #   Airflow and MLflow PostgreSQL instances
+│   │   ├── redis/                         #   Redis Deployment and Service
 │   │   ├── monitor/                       #   Prometheus, Grafana, Argo CD
-│   │   └── secrets/                       #   SealedSecret manifests (safe to commit)
+│   │   └── secrets/                       #   Empty per-service placeholders; Secret YAML stays outside Git
 │   ├── docker/                            #   Dockerfiles (multi-stage)
 │   │   ├── ml.Dockerfile
 │   │   ├── api.Dockerfile
@@ -926,9 +929,13 @@ flowchart LR
 
 | Application | Source Path | Namespace | Sync Policy |
 |:---|:---|:---|:---|
-| `deephorizon-data` | `infra/k8s/data/` | `deephorizon-data` | Auto-sync |
-| `deephorizon-ml` | `infra/k8s/ml/` | `deephorizon-ml` | Auto-sync |
-| `deephorizon-app` | `infra/k8s/app/` | `deephorizon-app` | Auto-sync |
+| `airflow` | `infra/k8s/airflow/` | `deephorizon-data` | Auto-sync |
+| `airflow-postgresql` | `infra/k8s/postgresql/airflow/` | `deephorizon-data` | Auto-sync |
+| `data` | `infra/k8s/minio/` | `deephorizon-data` | Auto-sync |
+| `ml` | `infra/k8s/mlflow/` | `deephorizon-ml` | Auto-sync |
+| `mlflow-postgresql` | `infra/k8s/postgresql/mlflow/` | `deephorizon-ml` | Auto-sync |
+| `app` | `infra/k8s/redis/` | `deephorizon-app` | Auto-sync |
+| `secrets` | `infra/k8s/secrets/` | Resource-defined | Auto-sync, no prune |
 | `deephorizon-monitor` | `infra/k8s/monitor/` | `deephorizon-monitor` | Auto-sync |
 
 Argo CD watches this repo's `infra/k8s/` directory and auto-syncs on every push to `main`. No manual `kubectl apply` is part of the deploy flow — if a manifest changes in Git, it changes in the cluster.
@@ -1042,7 +1049,7 @@ resources:
 
 ### Argo CD Strategy
 
-We use the **app-of-apps** pattern: a single root `Application` (`infra/k8s/app-of-apps.yaml`) tracks all four squad-level Applications. Adding a new service = adding one manifest, not running `argocd app create`. Auto-sync is enabled on every git push to `main`.
+We use the **app-of-apps** pattern: a single root `Application` (`infra/k8s/app-of-apps.yaml`) tracks the technology-level Applications under `infra/k8s/apps/`. Adding a new service = adding one manifest, not running `argocd app create`. Auto-sync is enabled on every git push to `main`.
 
 Technologies the team will use here: **Argo CD CLI**, **`kustomize`** for per-environment overlays, **Helm** for third-party charts (Sealed Secrets, gpu-operator).
 
@@ -1059,8 +1066,8 @@ All sensitive data (API keys, credentials, connection strings) are managed via *
 ### Secret Flow
 
 ```
-Developer → kubeseal encrypt → SealedSecret (committed to Git)
-                                     ↓
+Authorized operator → kubeseal encrypt → SealedSecret YAML (stored outside Git)
+                                     ↓ apply to cluster
                              Sealed Secrets Controller
                                      ↓
                              Kubernetes Secret (cluster-internal)
