@@ -1,4 +1,4 @@
-# Data squad Application: infra/k8s/data/ altindaki kustomize kaynagini izler.
+# MinIO Application: infra/k8s/minio/ altindaki kustomize kaynagini izler.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/Octapull/deephorizon.git
     targetRevision: main
-    path: infra/k8s/data
+    path: infra/k8s/minio
   destination:
     server: https://kubernetes.default.svc
     namespace: deephorizon-data

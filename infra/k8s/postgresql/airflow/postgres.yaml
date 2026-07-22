@@ -4,7 +4,8 @@
 # postgresql subchart'ini kurar (postgresql.enabled: true) ama o imaj 2025'te
 # Docker Hub'dan kaldirildi -> ImagePullBackOff (apache/airflow#56322, #57328).
 # Resmi cozum: postgresql.enabled=false + harici veritabani. Ayrica bu, MLflow'un
-# Postgres'iyle ayni deseni kullanmamizi sagliyor (infra/k8s/ml/postgres.yaml).
+# Postgres'iyle ayni deseni kullanmamizi sagliyor
+# (infra/k8s/postgresql/mlflow/postgres.yaml).
 #
 # Servis adi `airflow-postgres` -> airflow-db-credentials icindeki `connection`
 # anahtari bu adi kullanir: postgresql+psycopg2://airflow:***@airflow-postgres:5432/airflow

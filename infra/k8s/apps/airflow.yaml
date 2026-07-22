@@ -3,7 +3,8 @@
 # render komutu: infra/k8s/airflow/values.yaml · docs/AIRFLOW.md
 #
 # values.yaml'i degistirmek tek basina yetmez; yeniden render alip
-# manifests/airflow.yaml'i da commit et.
+# manifests/airflow.yaml'i da commit et. Kustomize ayni Application icinde
+# rendered Airflow kaynaklarini ve workspace PVC'yi uygular.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -14,8 +15,7 @@ spec:
   source:
     repoURL: https://github.com/Octapull/deephorizon.git
     targetRevision: main
-    # Yalnizca manifests/ — values.yaml Kubernetes kaynagi degil, uygulanamaz.
-    path: infra/k8s/airflow/manifests
+    path: infra/k8s/airflow
   destination:
     server: https://kubernetes.default.svc
     namespace: deephorizon-data

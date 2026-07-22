@@ -8,12 +8,14 @@ All deployment artifacts: Kubernetes manifests, Dockerfiles, and a local dev com
 
 | Path | Owner | Contents |
 |:---|:---|:---|
-| `k8s/data/` | Data squad | Airflow, MinIO manifests (kustomize) |
-| `k8s/ml/` | ML squad | MLflow, training Job, inference Deployment |
-| `k8s/app/` | Platform squad | Go API + Next.js frontend (NodePort Service only — no cluster Ingress; NGINX Proxy Manager handles TLS on the host) |
+| `k8s/airflow/` | Data squad | Airflow manifests, render values, workspace PVC |
+| `k8s/minio/` | Data squad | MinIO StatefulSet and Services |
+| `k8s/mlflow/` | ML squad | MLflow Deployment and Service |
+| `k8s/postgresql/` | Data / ML squads | Airflow and MLflow PostgreSQL instances |
+| `k8s/redis/` | Platform squad | Redis Deployment and Service |
 | `k8s/monitor/` | Platform squad | Prometheus, Grafana, Argo CD |
-| `k8s/secrets/` | Squad leads | SealedSecret manifests (safe to commit) |
-| `k8s/apps/` | Platform | Squad-level Argo CD `Application` manifests (one per area) tracked by the root app |
+| `k8s/secrets/` | Squad leads | Empty service placeholders; Secret YAML files stay outside Git |
+| `k8s/apps/` | Platform | Technology-level Argo CD `Application` manifests tracked by the root app |
 | `k8s/app-of-apps.yaml` | Platform | Root Argo CD Application that tracks `k8s/apps/` |
 | `docker/` | Per-service | Multi-stage Dockerfiles |
 | `docker-compose.dev.yaml` | All | Local stack: MinIO, MLflow, Postgres |
@@ -32,5 +34,5 @@ All deployment artifacts: Kubernetes manifests, Dockerfiles, and a local dev com
 5. Push manifests to `main` → Argo CD syncs
 
 After bootstrap, deployments happen via `git push` only: add manifests under
-`k8s/<area>/`, add an Application in `k8s/apps/` if the area is new, seal secrets
-into `k8s/secrets/`, open a PR.
+`k8s/<technology>/`, add an Application in `k8s/apps/` if the technology is new,
+and open a PR. Secret YAML files are managed outside Git and must not be committed.
