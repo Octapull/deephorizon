@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+  <defs>
+    <radialGradient id="ring">
+      <stop offset="0" stop-color="#020202"/>
+      <stop offset=".24" stop-color="#050101"/>
+      <stop offset=".34" stop-color="#5b0b03"/>
+      <stop offset=".43" stop-color="#ff5d16"/>
+      <stop offset=".5" stop-color="#fff2a0"/>
+      <stop offset=".58" stop-color="#ff8b17"/>
+      <stop offset=".7" stop-color="#721004"/>
+      <stop offset=".88" stop-color="#090101"/>
+      <stop offset="1" stop-color="#020202"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <rect width="900" height="900" fill="#020202"/>
+  <ellipse cx="450" cy="450" rx="285" ry="235" fill="url(#ring)" filter="url(#soft)" transform="rotate(-8 450 450)"/>
+  <ellipse cx="450" cy="450" rx="110" ry="92" fill="#010101"/>
+  <path d="M205 510c86 170 384 190 500 8-96 110-392 112-500-8Z" fill="#fff0a0" opacity=".32" filter="url(#soft)"/>
+</svg>

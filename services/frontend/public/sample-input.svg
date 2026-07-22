@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+  <defs>
+    <radialGradient id="source">
+      <stop offset="0" stop-color="#fff5b8"/>
+      <stop offset=".18" stop-color="#ffb328"/>
+      <stop offset=".42" stop-color="#ed4c14"/>
+      <stop offset=".68" stop-color="#5d0d05"/>
+      <stop offset="1" stop-color="#030303"/>
+    </radialGradient>
+    <filter id="noise">
+      <feTurbulence type="fractalNoise" baseFrequency=".32" numOctaves="4" seed="8" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0" result="mono"/>
+      <feBlend in="SourceGraphic" in2="mono" mode="screen"/>
+    </filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="900" height="900" fill="#050505"/>
+  <circle cx="450" cy="450" r="235" fill="url(#source)" filter="url(#blur)"/>
+  <rect width="900" height="900" opacity=".45" filter="url(#noise)"/>
+</svg>
