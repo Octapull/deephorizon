@@ -16,3 +16,5 @@ great-expectations>=1.4.0
 # setuptools==82.0.1 pinliyor -> dogrudan cakisma, kurulum coker.
 # Imajda setuptools'u Airflow'un kendi kisiti yonetir; ehtim'in gercekten
 # calistigi infra/docker/airflow.Dockerfile sonundaki import testiyle dogrulanir.
+boto3==1.34.0
+python-dotenv==1.0.1
