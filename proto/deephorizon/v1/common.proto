@@ -22,8 +22,10 @@ message Metrics {
   uint32 inference_time_ms = 4;
 }
 
-// Async job lifecycle states. Sync /enhance requests jump straight to
-// COMPLETED; batch requests transition QUEUED -> RUNNING -> COMPLETED.
+// Async job lifecycle states. The Go gateway queues both single and batch
+// /enhance requests immediately (QUEUED), moves them to RUNNING while the
+// inference RPC is in flight, and settles on COMPLETED or FAILED. Poll
+// GET /enhance/{job_id} for the final state.
 enum JobStatus {
   JOB_STATUS_UNSPECIFIED = 0;
   JOB_STATUS_QUEUED = 1;
