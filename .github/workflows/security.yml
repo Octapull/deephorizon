@@ -1,0 +1,45 @@
+# Dependency vulnerability scan for frontend (npm) and backend (Go).
+name: security
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly, catches newly disclosed CVEs
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Go (govulncheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Scan
+        run: govulncheck ./...
+
+  frontend:
+    name: npm (audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: services/frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Scan
+        run: npm audit --audit-level=high   # fails on high/critical
