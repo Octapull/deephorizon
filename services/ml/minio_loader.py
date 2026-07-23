@@ -15,10 +15,6 @@ def get_s3_client():
     )
 
 def list_files_in_minio(bucket_name, prefix_path):
-    """
-    Sunucudaki belirli bir dosya yolu altındaki .npy dosyalarını bulur.
-    Örnek prefix_path: "data/training/clean/"
-    """
     s3_client = get_s3_client()
     file_keys = []
     

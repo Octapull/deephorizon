@@ -3,10 +3,10 @@ import torch
 from torch.utils.data import Dataset
 from pathlib import Path
 
-from services.ml.data.minio_loader import load_npy_from_minio, list_files_in_minio
+from services.ml.minio_loader import load_npy_from_minio, list_files_in_minio
 
 class BlackHoleDataset(Dataset):
-    def __init__(self, root_dir, use_minio=False, bucket_name="karadelikler", minio_prefix="datasets/training-512/v1"):
+    def __init__(self, root_dir, use_minio=False, bucket_name="blackhole", minio_prefix="datasets/training-512/v1"):
         self.root_dir = Path(root_dir)
         self.use_minio = use_minio
         self.bucket_name = bucket_name
