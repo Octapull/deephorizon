@@ -1,0 +1,234 @@
+openapi: 3.0.0
+info:
+  description: REST gateway in front of the Python gRPC inference service.
+    Translates multipart image uploads into Enhance/EnhanceBatch RPCs and tracks
+    job state in Redis.
+  title: DeepHorizon API Gateway
+  contact: {}
+  version: "1.0"
+paths:
+  /enhance:
+    post:
+      description: Accepts one image and queues an async super-resolution job. Poll
+        GET /enhance/{job_id} for the result.
+      tags:
+        - enhance
+      summary: Queue a single-image enhancement job
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  description: Image to enhance
+                  type: string
+                  format: binary
+                model_id:
+                  description: Model identifier
+                  type: string
+                scale_factor:
+                  description: Scale factor
+                  type: integer
+                  enum:
+                    - 1
+                    - 2
+                    - 4
+                output_format:
+                  description: Output format
+                  type: string
+                  enum:
+                    - png
+                    - fits
+              required:
+                - image
+                - model_id
+                - scale_factor
+                - output_format
+        required: true
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /enhance/batch:
+    post:
+      description: Accepts up to 10 images sharing the same model/scale/format, queues
+        one job per image, and dispatches them as a single EnhanceBatch gRPC
+        call.
+      tags:
+        - enhance
+      summary: Queue a batch enhancement job
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  description: Images to enhance (max 10)
+                  type: string
+                  format: binary
+                model_id:
+                  description: Model identifier
+                  type: string
+                scale_factor:
+                  description: Scale factor
+                  type: integer
+                  enum:
+                    - 1
+                    - 2
+                    - 4
+                output_format:
+                  description: Output format
+                  type: string
+                  enum:
+                    - png
+                    - fits
+              required:
+                - images
+                - model_id
+                - scale_factor
+                - output_format
+        required: true
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  "/enhance/{job_id}":
+    get:
+      description: Reports the current state of a job queued by Enhance or
+        EnhanceBatch. The result image (if any) is embedded as base64.
+      tags:
+        - enhance
+      summary: Get job status/result
+      parameters:
+        - description: Job id
+          name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /health:
+    get:
+      description: Reports the gateway's own status plus, if reachable, the inference
+        service's status via the Health RPC.
+      tags:
+        - health
+      summary: Gateway and inference service health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /models:
+    get:
+      description: Proxies the ListModels RPC to the inference service.
+      tags:
+        - models
+      summary: List available models
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  "/models/{id}":
+    get:
+      description: Fetches ListModels from the inference service and filters by id.
+      tags:
+        - models
+      summary: Get a single model by id
+      parameters:
+        - description: Model id
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+servers:
+  - url: /
