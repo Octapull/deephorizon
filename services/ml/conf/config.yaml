@@ -1,0 +1,34 @@
+# DeepHorizon — root Hydra config
+# Loaded by `python -m services.ml.training.train`
+# Override anything from CLI: `python -m services.ml.training.train training.epochs=2`
+
+defaults:
+  - model: unet
+  - training: default
+  - data: default
+  - loss: default
+  - _self_
+
+# Paths
+paths:
+  output_dir: checkpoints          # where checkpoints, jsonl, sample PNGs land
+  root_dir: data/training          # local fallback when data.use_minio=false
+
+# Reproducibility
+seed: 42
+
+# Device: "cuda" | "cpu" | "auto" (auto = cuda if available else cpu)
+device: auto
+
+# MLflow tracking (Faz 1 Adım 2'de kullanılacak; şimdilik sadece config'de)
+mlflow:
+  tracking_uri: "http://mlflow.deephorizon-ml.svc:5000"
+  experiment_name: "unet-baseline"
+  run_name: null                   # null → MLflow auto-generates
+  log_model: true                  # best_model.pt'yi artifact olarak logla
+
+# Hydra runtime config — CLI override'ların çalışması için struct modunu kapat
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+  output_subdir: .hydra

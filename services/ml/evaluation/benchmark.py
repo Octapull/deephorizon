@@ -17,6 +17,10 @@ class ValidationSummary:
     val_loss: float
     psnr: float
     ssim: float
+    lpips: float = 0.0
+    flux_error: float = 0.0
+    ring_diameter_error: float = 0.0
+    asymmetry_error: float = 0.0
 
 
 def _prepare_output_dir(output_dir: Path | str) -> Path:
@@ -71,6 +75,10 @@ def evaluate_validation_loader(
     running_val_loss = 0.0
     running_psnr = 0.0
     running_ssim = 0.0
+    running_lpips = 0.0
+    running_flux_error = 0.0
+    running_ring_diameter_error = 0.0
+    running_asymmetry_error = 0.0
     batch_count = 0
     sample_batch: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None
 
@@ -81,11 +89,17 @@ def evaluate_validation_loader(
             prediction = model(degraded)
 
             loss = criterion(prediction, clean)
-            metrics = compute_metrics(prediction, clean)
+            metrics = compute_metrics(
+                prediction, clean, include_lpips=True, include_physics=True
+            )
 
             running_val_loss += float(loss.item())
             running_psnr += metrics["psnr"]
             running_ssim += metrics["ssim"]
+            running_lpips += metrics["lpips"]
+            running_flux_error += metrics["flux_error"]
+            running_ring_diameter_error += metrics["ring_diameter_error"]
+            running_asymmetry_error += metrics["asymmetry_error"]
             batch_count += 1
 
             if sample_batch is None:
@@ -104,6 +118,10 @@ def evaluate_validation_loader(
         val_loss=running_val_loss / batch_count,
         psnr=running_psnr / batch_count,
         ssim=running_ssim / batch_count,
+        lpips=running_lpips / batch_count,
+        flux_error=running_flux_error / batch_count,
+        ring_diameter_error=running_ring_diameter_error / batch_count,
+        asymmetry_error=running_asymmetry_error / batch_count,
     )
     return summary, sample_batch
 

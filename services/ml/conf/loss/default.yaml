@@ -1,0 +1,13 @@
+# @package _global_
+# Loss function configuration
+# Faz 1 Adım 6: mse | l1 | smooth_l1
+# Faz 2'de eklenecek: perceptual, gan, physics, combined
+
+loss:
+  name: l1                         # mse | l1 | smooth_l1
+  # Combined loss ağırlıkları (Faz 2'de kullanılacak)
+  weights:
+    pixel: 1.0
+    perceptual: 0.0
+    adversarial: 0.0
+    physics: 0.0
