@@ -1,0 +1,25 @@
+# @package _global_
+# ONNX export configuration
+# Faz 2 Adım 14: PyTorch → ONNX for gRPC inference server
+
+export:
+  # Model tipi
+  model_type: pix2pix_generator    # unet | pix2pix_generator
+
+  # Dummy input shape (B, C, H, W)
+  input_shape: [1, 1, 256, 256]
+
+  # ONNX opset (17 = onnxruntime-go uyumlu)
+  onnx_opset: 17
+
+  # Dynamic axes: batch + spatial dims değişken
+  dynamic_axes: true
+
+  # Validation: PyTorch vs ONNX output karşılaştırması
+  validate: true
+  atol: 1.0e-4
+  rtol: 1.0e-3
+
+  # Output paths
+  output_dir: exports
+  model_name: deephorizon_generator

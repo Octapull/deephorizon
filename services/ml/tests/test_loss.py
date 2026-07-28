@@ -52,10 +52,12 @@ def test_get_loss_unknown_raises() -> None:
         get_loss("unknown")
 
 
-def test_get_loss_physics_not_yet_supported() -> None:
-    """Faz 2'de eklenecek physics loss şimdilik ValueError."""
-    with pytest.raises(ValueError, match="Unknown loss"):
-        get_loss("physics")
+def test_get_loss_physics_supported() -> None:
+    """Faz 2 Adım 12: physics loss artık destekleniyor."""
+    from services.ml.losses.physics import PhysicsLoss
+
+    loss = get_loss("physics")
+    assert isinstance(loss, PhysicsLoss)
 
 
 def test_supported_losses_is_frozenset() -> None:

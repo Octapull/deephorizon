@@ -30,3 +30,6 @@ training:
   # Checkpointing
   save_every_epoch: true
   keep_last_n: 3                   # sadece son N epoch checkpoint'ini tut
+
+  # GAN-specific (Faz 2 Adım 13)
+  discriminator_lr_factor: 0.5     # D lr = G lr × factor (Pix2Pix standart)

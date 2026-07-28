@@ -1,0 +1,21 @@
+# @package _global_
+# Pix2Pix model architecture
+# Faz 2 Adım 11-13: Generator (U-Net wrapper) + Discriminator (PatchGAN)
+
+model:
+  name: pix2pix
+  in_channels: 1
+  out_channels: 1
+
+  # Generator (Pix2PixGenerator)
+  generator:
+    dropout: 0.5                   # decoder dropout (0.0 = disabled)
+    use_tanh: true                 # Tanh output → [-1, 1]
+
+  # Discriminator (PatchDiscriminator)
+  discriminator:
+    in_channels: 2                 # condition (1) + target (1)
+    base_channels: 64              # C64
+    max_channels: 512              # C512
+    n_layers: 3                    # C64 → C128 → C256 → C512
+    use_sigmoid: true              # Sigmoid output (LSGAN için false yapılabilir)
