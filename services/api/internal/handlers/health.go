@@ -2,53 +2,47 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-const healthCheckTimeout = 3 * time.Second
-
-// Health godoc
-// @Summary      Gateway and inference service health
-// @Description  Reports the gateway's own status plus, if reachable, the inference service's status via the Health RPC.
-// @Tags         health
-// @Produce      json
-// @Success      200  {object}  map[string]interface{}
-// @Router       /health [get]
+// Health — API + inference server sağlık kontrolü
+//
+// HTTP GET /health
+// Response: {"status", "inference_server", "gpu_available", "detail"}
 func (h *Handler) Health(c *gin.Context) {
+	// gRPC client yoksa sadece API sağlığını döndür
 	if h.GRPCClient == nil {
 		c.JSON(http.StatusOK, gin.H{
 			"status":            "ok",
+			"inference_server":  "disconnected",
 			"gpu_available":     false,
-			"inference_service": "not connected (mock mode)",
+			"detail":            "gRPC client not connected",
 		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), healthCheckTimeout)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.GRPCClient.Health(ctx)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"status":            "ok",
-			"gpu_available":     false,
-			"inference_service": "unreachable: " + err.Error(),
+		log.Printf("gRPC Health failed: %v", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":           "degraded",
+			"inference_server": "unreachable",
+			"detail":           err.Error(),
 		})
 		return
 	}
 
-	inferenceStatus := "ok"
-	if !resp.GetOk() {
-		inferenceStatus = "degraded"
-	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"status":            "ok",
-		"gpu_available":     resp.GetGpuAvailable(),
-		"inference_service": inferenceStatus,
-		"inference_detail":  resp.GetDetail(),
+		"status":           "ok",
+		"inference_server": "connected",
+		"gpu_available":    resp.GpuAvailable,
+		"detail":           resp.Detail,
 	})
 }

@@ -2,98 +2,104 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-
-	pb "github.com/Octapull/deephorizon/services/api/internal/pb/deephorizon/v1"
 )
 
-const modelsCallTimeout = 5 * time.Second
-
-func modelInfoJSON(m *pb.ModelInfo) gin.H {
-	entry := gin.H{
-		"id":           m.GetId(),
-		"architecture": m.GetArchitecture(),
-		"version":      m.GetVersion(),
-	}
-	if vm := m.GetValidationMetrics(); vm != nil {
-		entry["validation_metrics"] = gin.H{
-			"psnr":              vm.GetPsnr(),
-			"ssim":              vm.GetSsim(),
-			"lpips":             vm.GetLpips(),
-			"inference_time_ms": vm.GetInferenceTimeMs(),
-		}
-	}
-	return entry
-}
-
-// ListModels godoc
-// @Summary      List available models
-// @Description  Proxies the ListModels RPC to the inference service.
-// @Tags         models
-// @Produce      json
-// @Success      200  {object}  map[string]interface{}
-// @Failure      503  {object}  map[string]interface{}
-// @Router       /models [get]
+// ListModels — inference server'daki tüm modelleri listele
+//
+// HTTP GET /models
+// Response: {"models": [{"id", "architecture", "version", "validation_metrics"}]}
 func (h *Handler) ListModels(c *gin.Context) {
+	// gRPC client yoksa boş liste döndür
 	if h.GRPCClient == nil {
 		c.JSON(http.StatusOK, gin.H{
 			"models": []gin.H{},
-			"detail": "inference service not connected (mock mode)",
+			"note":   "gRPC client not connected",
 		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), modelsCallTimeout)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	resp, err := h.GRPCClient.ListModels(ctx)
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service unreachable: " + err.Error()})
+		log.Printf("gRPC ListModels failed: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{
+			"error":  "inference server error",
+			"detail": err.Error(),
+		})
 		return
 	}
 
-	models := make([]gin.H, 0, len(resp.GetModels()))
-	for _, m := range resp.GetModels() {
-		models = append(models, modelInfoJSON(m))
+	// Proto → JSON
+	models := make([]gin.H, 0, len(resp.Models))
+	for _, m := range resp.Models {
+		models = append(models, gin.H{
+			"id":           m.Id,
+			"architecture": m.Architecture,
+			"version":      m.Version,
+			"validation_metrics": gin.H{
+				"psnr": m.ValidationMetrics.Psnr,
+				"ssim": m.ValidationMetrics.Ssim,
+			},
+		})
 	}
+
 	c.JSON(http.StatusOK, gin.H{"models": models})
 }
 
-// GetModel godoc
-// @Summary      Get a single model by id
-// @Description  Fetches ListModels from the inference service and filters by id.
-// @Tags         models
-// @Produce      json
-// @Param        id   path      string  true  "Model id"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      404  {object}  map[string]interface{}
-// @Failure      503  {object}  map[string]interface{}
-// @Router       /models/{id} [get]
+// GetModel — tek model detayı (şimdilik ListModels'dan filtreleme)
+//
+// HTTP GET /models/:id
 func (h *Handler) GetModel(c *gin.Context) {
 	modelID := c.Param("id")
 
+	// gRPC client yoksa mock response
 	if h.GRPCClient == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service not connected (mock mode)"})
+		c.JSON(http.StatusOK, gin.H{
+			"id":           modelID,
+			"architecture": "unknown",
+			"status":       "gRPC client not connected",
+		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), modelsCallTimeout)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	resp, err := h.GRPCClient.ListModels(ctx)
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service unreachable: " + err.Error()})
+		log.Printf("gRPC ListModels failed: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{
+			"error":  "inference server error",
+			"detail": err.Error(),
+		})
 		return
 	}
 
-	for _, m := range resp.GetModels() {
-		if m.GetId() == modelID {
-			c.JSON(http.StatusOK, modelInfoJSON(m))
+	// ID'ye göre filtrele
+	for _, m := range resp.Models {
+		if m.Id == modelID {
+			c.JSON(http.StatusOK, gin.H{
+				"id":           m.Id,
+				"architecture": m.Architecture,
+				"version":      m.Version,
+				"validation_metrics": gin.H{
+					"psnr": m.ValidationMetrics.Psnr,
+					"ssim": m.ValidationMetrics.Ssim,
+				},
+			})
 			return
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "model not found", "id": modelID})
+
+	c.JSON(http.StatusNotFound, gin.H{
+		"error":    "model not found",
+		"model_id": modelID,
+	})
 }
