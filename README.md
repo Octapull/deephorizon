@@ -1105,22 +1105,33 @@ Concrete install / encrypt commands are intentionally omitted — see the Sealed
 
 ## 📅 Roadmap
 
-| Week | Focus | Deliverables | Squad Lead |
-|:---:|:---|:---|:---|
-| **1** | Bootstrap | Repo scaffolding (`services/`, `proto/`, `infra/`), `pyproject.toml`, CI skeleton, `proto/` v1 frozen | All |
-| **2** | Data + Proto contract | EHT download, synthetic generator (128x128), training pairs (512x512), `inference.proto` reviewed and merged | Data, Platform |
-| **3** | Baseline + Eval harness | U-Net training, MLflow up, metric suite (PSNR/SSIM/LPIPS/FID), `eval_baseline.py` | ML |
-| **4** | GAN Phase | Pix2Pix training, physics loss v1, Optuna runner | ML |
-| **5** | ESRGAN | ESRGAN training (Phase 3 [TARGET]), perceptual loss tuning | ML |
-| **6** | Inference + Go API skeleton | ONNX export, gRPC inference server, Go gateway `/health` + `/enhance` (mock) | ML, Platform |
-| **7** | End-to-end wire-up | Real gRPC call from Go → Python, async job flow, OpenAPI spec | Platform |
-| **8** | **Go/no-go gate** + Frontend | Phase 3 metrics review → decide on Restormer (Phase 4 [STRETCH]). React SPA MVP | All |
-| **9** | Restormer (if go) / Polish (if no-go) | Restormer training OR ESRGAN refinement + frontend feature-complete | ML, Platform |
-| **10** | K8s + Argo CD | MicroK8s deploy, Sealed Secrets, app-of-apps bootstrap, training Job manifest | All squads |
-| **11** | Observability + Hardening | Prometheus metrics, Grafana dashboards, Evidently drift report, load test | Platform |
-| **12** | Demo | E2E test, runbooks, ADRs, final presentation | All |
+| Week | Focus | Deliverables | Squad Lead | Status |
+|:---:|:---|:---|:---|:---:|
+| **1** | Bootstrap | Repo scaffolding (`services/`, `proto/`, `infra/`), `pyproject.toml`, CI skeleton, `proto/` v1 frozen | All | ✅ |
+| **2** | Data + Proto contract | EHT download, synthetic generator (128x128), training pairs (512x512), `inference.proto` reviewed and merged | Data, Platform | ✅ |
+| **3** | Baseline + Eval harness | U-Net training, MLflow up, metric suite (PSNR/SSIM/LPIPS/FID), `eval_baseline.py` | ML | ✅ |
+| **4** | GAN Phase | Pix2Pix training, physics loss v1, Optuna runner | ML | ✅ |
+| **5** | ESRGAN | ESRGAN training (Phase 3 [TARGET]), perceptual loss tuning | ML | 🔜 |
+| **6** | Inference + Go API skeleton | ONNX export, gRPC inference server, Go gateway `/health` + `/enhance` (mock) | ML, Platform | ✅ |
+| **7** | End-to-end wire-up | Real gRPC call from Go → Python, async job flow, OpenAPI spec | Platform | ✅ |
+| **8** | **Go/no-go gate** + Frontend | Phase 3 metrics review → decide on Restormer (Phase 4 [STRETCH]). React SPA MVP | All | 🔜 |
+| **9** | Restormer (if go) / Polish (if no-go) | Restormer training OR ESRGAN refinement + frontend feature-complete | ML, Platform | ⏳ |
+| **10** | K8s + Argo CD | MicroK8s deploy, Sealed Secrets, app-of-apps bootstrap, training Job manifest | All squads | ⏳ |
+| **11** | Observability + Hardening | Prometheus metrics, Grafana dashboards, Evidently drift report, load test | Platform | ⏳ |
+| **12** | Demo | E2E test, runbooks, ADRs, final presentation | All | ⏳ |
 
 > **Week 8 go/no-go gate.** If Phase 3 (ESRGAN) hits **SSIM ≥ 0.85** on the `medium` split by Friday of Week 8, the team commits to Phase 4 (Restormer) in Weeks 9–10. Otherwise, Weeks 9–10 are spent hardening ESRGAN and the serving stack. This decision is made jointly by ML squad and project mentor.
+
+### Faz 2 Completion (Adım 11–18)
+
+**Faz 2 is complete.** The full Pix2Pix GAN training → ONNX export → gRPC inference → Go API gateway pipeline is implemented and validated.
+
+- **18 new Python files**, **4 updated Python files**, **3 updated Go files**
+- **131 tests** across 11 test files (93 new in Faz 2)
+- **~3,600 lines** of new code
+- **160 validation checks** all passing (`python scripts/faz2_validation.py`)
+
+See [docs/FAZ2_SUMMARY.md](docs/FAZ2_SUMMARY.md) for the full breakdown by step.
 
 <br>
 
