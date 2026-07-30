@@ -17,3 +17,4 @@ data:
   # Augmentation (Faz 1 Adım 8 — train set'e flip + 90° rot + random crop)
   augment: true
   crop_size: 256                   # random crop from 512×512 (augment=true ise)
+  split: null                      # light/medium/heavy/extreme (null = root_dir/clean + root_dir/degraded)

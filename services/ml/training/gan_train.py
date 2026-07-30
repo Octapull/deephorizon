@@ -20,16 +20,44 @@ Reference:
     Isola, P. et al. (2017). "Image-to-Image Translation with
     Conditional Adversarial Networks." CVPR.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import hydra
 import mlflow
 import mlflow.pytorch
 import torch
 from omegaconf import DictConfig, OmegaConf
-from torch.amp import GradScaler, autocast
+
+# PyTorch 2.2.x uyumluluğu: torch.amp.GradScaler 2.3+ ile gelir.
+# Eski sürümlerde torch.cuda.amp üzerinden import edilir.
+try:
+    from torch.amp import GradScaler, autocast as _torch_autocast
+
+    _AMP_HAS_DTYPE = True
+except ImportError:  # pragma: no cover - eski torch sürümleri için
+    from torch.cuda.amp import GradScaler, autocast as _torch_autocast
+
+    _AMP_HAS_DTYPE = False
+
+
+def _autocast_ctx(enabled: bool, amp_dtype: torch.dtype):
+    """PyTorch 2.2/2.3+ uyumlu autocast context manager.
+
+    PyTorch >= 2.3: ``torch.amp.autocast("cuda", enabled=..., dtype=...)``
+    PyTorch 2.2 : ``torch.cuda.amp.autocast(enabled=...)`` — ``dtype`` yok,
+                  sadece ``torch.float16`` (FP16) desteklenir.
+    """
+    if not enabled:
+        return _torch_autocast(enabled=False)
+    if _AMP_HAS_DTYPE:
+        return _torch_autocast("cuda", enabled=True, dtype=amp_dtype)
+    # Eski API: dtype parametresi yok; sadece FP16 desteklenir.
+    return _torch_autocast(enabled=True)
+
 
 from services.ml.checkpoints.checkpoint import save_checkpoint
 from services.ml.data.dataloader import create_train_val_loaders
@@ -48,23 +76,31 @@ def _build_generator(cfg: DictConfig, device: torch.device) -> Pix2PixGenerator:
     """Build the Pix2Pix generator from config."""
     model_cfg = cfg.model
     generator = Pix2PixGenerator(
-        in_channels=int(model_cfg.get("in_channels", 1)),
-        out_channels=int(model_cfg.get("out_channels", 1)),
-        dropout=float(model_cfg.get("dropout", 0.5)),
-        use_tanh=bool(model_cfg.get("use_tanh", True)),
+        in_channels=int(getattr(model_cfg, "in_channels", 1)),
+        out_channels=int(getattr(model_cfg, "out_channels", 1)),
+        dropout=float(getattr(model_cfg, "dropout", 0.5)),
+        use_tanh=bool(getattr(model_cfg, "use_tanh", True)),
     )
     return generator.to(device)
 
 
 def _build_discriminator(cfg: DictConfig, device: torch.device) -> PatchDiscriminator:
     """Build the PatchGAN discriminator from config."""
-    disc_cfg = cfg.model.get("discriminator", {})
+    disc_cfg = getattr(cfg.model, "discriminator", None)
+    if disc_cfg is None:
+        disc_cfg = SimpleNamespace(
+            in_channels=2,
+            base_channels=64,
+            max_channels=512,
+            n_layers=3,
+            use_sigmoid=True,
+        )
     discriminator = PatchDiscriminator(
-        in_channels=int(disc_cfg.get("in_channels", 2)),
-        base_channels=int(disc_cfg.get("base_channels", 64)),
-        max_channels=int(disc_cfg.get("max_channels", 512)),
-        n_layers=int(disc_cfg.get("n_layers", 3)),
-        use_sigmoid=bool(disc_cfg.get("use_sigmoid", True)),
+        in_channels=int(getattr(disc_cfg, "in_channels", 2)),
+        base_channels=int(getattr(disc_cfg, "base_channels", 64)),
+        max_channels=int(getattr(disc_cfg, "max_channels", 512)),
+        n_layers=int(getattr(disc_cfg, "n_layers", 3)),
+        use_sigmoid=bool(getattr(disc_cfg, "use_sigmoid", True)),
     )
     return discriminator.to(device)
 
@@ -75,17 +111,17 @@ def _build_losses(cfg: DictConfig) -> tuple[CombinedLoss, DiscriminatorAdversari
     weights = loss_cfg.weights
 
     generator_loss = CombinedLoss(
-        pixel_weight=float(weights.get("pixel", 100.0)),
-        perceptual_weight=float(weights.get("perceptual", 0.0)),
-        adversarial_weight=float(weights.get("adversarial", 1.0)),
-        physics_weight=float(weights.get("physics", 0.0)),
-        pixel_loss=str(loss_cfg.get("pixel_loss", "l1")),
-        gan_mode=str(loss_cfg.get("gan_mode", "lsgan")),
-        perceptual_layer=str(loss_cfg.get("perceptual_layer", "relu2_2")),
+        pixel_weight=float(getattr(weights, "pixel", 100.0)),
+        perceptual_weight=float(getattr(weights, "perceptual", 0.0)),
+        adversarial_weight=float(getattr(weights, "adversarial", 1.0)),
+        physics_weight=float(getattr(weights, "physics", 0.0)),
+        pixel_loss=str(getattr(loss_cfg, "pixel_loss", "l1")),
+        gan_mode=str(getattr(loss_cfg, "gan_mode", "lsgan")),
+        perceptual_layer=str(getattr(loss_cfg, "perceptual_layer", "relu2_2")),
     )
 
     discriminator_loss = DiscriminatorAdversarialLoss(
-        mode=str(loss_cfg.get("gan_mode", "lsgan")),
+        mode=str(getattr(loss_cfg, "gan_mode", "lsgan")),
     )
 
     return generator_loss, discriminator_loss
@@ -107,7 +143,7 @@ def _build_optimizers(
     betas = tuple(opt_cfg.betas)
     weight_decay = float(opt_cfg.weight_decay)
 
-    d_lr = lr * float(cfg.training.get("discriminator_lr_factor", 0.5))
+    d_lr = lr * float(getattr(cfg.training, "discriminator_lr_factor", 0.5))
 
     g_optimizer = torch.optim.Adam(
         generator.parameters(),
@@ -154,7 +190,7 @@ def _train_discriminator_step(
     discriminator.train()
     d_optimizer.zero_grad()
 
-    with autocast("cuda", enabled=use_amp, dtype=amp_dtype):
+    with _autocast_ctx(use_amp, amp_dtype):
         disc_real = discriminator(condition, real_target)
         disc_fake = discriminator(condition, fake_target)
         d_loss = d_loss_fn(disc_real, disc_fake)
@@ -200,7 +236,7 @@ def _train_generator_step(
     generator.train()
     g_optimizer.zero_grad()
 
-    with autocast("cuda", enabled=use_amp, dtype=amp_dtype):
+    with _autocast_ctx(use_amp, amp_dtype):
         fake_target = generator(condition)
         # Discriminator output for the fake (no grad through D)
         disc_fake = discriminator(condition, fake_target)
@@ -266,7 +302,9 @@ def train_gan(cfg: DictConfig) -> Path:
 
     # AMP
     use_amp = bool(cfg.training.amp) and device.type == "cuda"
-    amp_dtype = torch.bfloat16 if cfg.training.amp_dtype == "bfloat16" else torch.float16
+    amp_dtype = (
+        torch.bfloat16 if cfg.training.amp_dtype == "bfloat16" else torch.float16
+    )
     scaler = GradScaler("cuda", enabled=use_amp and amp_dtype == torch.float16)
 
     # Gradient accumulation

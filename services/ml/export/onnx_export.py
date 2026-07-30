@@ -16,6 +16,7 @@ Reference:
     ONNX: https://onnx.ai/
     torch.onnx: https://pytorch.org/docs/stable/onnx.html
 """
+
 from __future__ import annotations
 
 import json
@@ -27,7 +28,6 @@ import torch
 
 from services.ml.models.pix2pix import Pix2PixGenerator
 from services.ml.models.unet import UNet
-
 
 # ---------------------------------------------------------------------------
 # Metadata dataclass
@@ -285,10 +285,20 @@ def save_metadata(
 
 
 def load_metadata(metadata_path: Path | str) -> ExportMetadata:
-    """Load export metadata from a JSON sidecar file."""
+    """Load export metadata from a JSON sidecar file.
+
+    JSON tuple'ları list olarak saklar; burada ``input_shape`` ve
+    ``output_shape`` alanlarını tekrar tuple'a çeviriyoruz.
+    """
     metadata_path = Path(metadata_path)
     with metadata_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
+
+    # JSON tuple'ları list olarak saklar; dataclass tuple bekliyor
+    for key in ("input_shape", "output_shape"):
+        if key in data and isinstance(data[key], list):
+            data[key] = tuple(data[key])
+
     return ExportMetadata(**data)
 
 
