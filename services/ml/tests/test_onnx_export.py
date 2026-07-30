@@ -1,4 +1,5 @@
 """Unit tests for services.ml.export.onnx_export."""
+
 from __future__ import annotations
 
 import json
@@ -17,7 +18,6 @@ from services.ml.export.onnx_export import (
 )
 from services.ml.models.pix2pix import Pix2PixGenerator
 from services.ml.models.unet import UNet
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -49,8 +49,19 @@ def unet_checkpoint(tmp_path: Path) -> Path:
 @pytest.fixture
 def pix2pix_checkpoint(tmp_path: Path) -> Path:
     """Create a dummy Pix2Pix GAN checkpoint."""
+    from services.ml.models.pix2pix import PatchDiscriminator
+
     generator = Pix2PixGenerator(in_channels=1, out_channels=1, dropout=0.0)
-    discriminator = torch.nn.Module()  # placeholder
+    discriminator = PatchDiscriminator(
+        in_channels=2,
+        base_channels=4,
+        n_layers=2,
+    )
+    # PatchDiscriminator lazy init: dummy forward pass ile layer'ları oluştur
+    _dummy_cond = torch.randn(1, 1, 16, 16)
+    _dummy_tgt = torch.randn(1, 1, 16, 16)
+    _ = discriminator(_dummy_cond, _dummy_tgt)
+
     g_optimizer = torch.optim.Adam(generator.parameters(), lr=1e-3)
     d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=5e-4)
     path = tmp_path / "gan_ckpt.pt"
@@ -79,9 +90,7 @@ def pix2pix_checkpoint(tmp_path: Path) -> Path:
 
 def test_load_unet_from_checkpoint(unet_checkpoint: Path) -> None:
     """load_model_from_checkpoint('unet') → UNet in eval mode."""
-    model, checkpoint = load_model_from_checkpoint(
-        unet_checkpoint, model_type="unet"
-    )
+    model, checkpoint = load_model_from_checkpoint(unet_checkpoint, model_type="unet")
 
     assert isinstance(model, UNet)
     assert not model.training  # eval mode
@@ -110,9 +119,7 @@ def test_load_unknown_model_type(unet_checkpoint: Path) -> None:
 def test_load_missing_checkpoint(tmp_path: Path) -> None:
     """Non-existent checkpoint → FileNotFoundError."""
     with pytest.raises(FileNotFoundError, match="Checkpoint not found"):
-        load_model_from_checkpoint(
-            tmp_path / "nonexistent.pt", model_type="unet"
-        )
+        load_model_from_checkpoint(tmp_path / "nonexistent.pt", model_type="unet")
 
 
 # ---------------------------------------------------------------------------

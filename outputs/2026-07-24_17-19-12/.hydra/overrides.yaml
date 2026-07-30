@@ -1,0 +1,3 @@
+- training.epochs=2
+- data.use_minio=false
+- data.root_dir=data/training

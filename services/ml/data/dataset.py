@@ -41,15 +41,19 @@ class BlackHoleDataset(Dataset):
 
         if not self.use_minio:
             base = self.root_dir / split if split else self.root_dir
-            self.clean_files = sorted(
-                (base / "clean").glob("*.npy")
-            )
-            self.degraded_files = sorted(
-                (base / "degraded").glob("*.npy")
-            )
+            self.clean_files = sorted((base / "clean").glob("*.npy"))
+            self.degraded_files = sorted((base / "degraded").glob("*.npy"))
         else:
-            clean_path = f"{self.minio_prefix}/{split}/clean/" if split else f"{self.minio_prefix}/clean/"
-            degraded_path = f"{self.minio_prefix}/{split}/degraded/" if split else f"{self.minio_prefix}/degraded/"
+            clean_path = (
+                f"{self.minio_prefix}/{split}/clean/"
+                if split
+                else f"{self.minio_prefix}/clean/"
+            )
+            degraded_path = (
+                f"{self.minio_prefix}/{split}/degraded/"
+                if split
+                else f"{self.minio_prefix}/degraded/"
+            )
 
             self.clean_files = list_files_in_minio(self.bucket_name, clean_path)
             self.degraded_files = list_files_in_minio(self.bucket_name, degraded_path)
@@ -63,7 +67,9 @@ class BlackHoleDataset(Dataset):
             degraded_data = np.load(self.degraded_files[index])
         else:
             clean_data = load_npy_from_minio(self.bucket_name, self.clean_files[index])
-            degraded_data = load_npy_from_minio(self.bucket_name, self.degraded_files[index])
+            degraded_data = load_npy_from_minio(
+                self.bucket_name, self.degraded_files[index]
+            )
 
         clean = torch.from_numpy(clean_data)
         degraded = torch.from_numpy(degraded_data)
@@ -102,12 +108,16 @@ class BlackHoleDataset(Dataset):
             clean = torch.rot90(clean, k=k, dims=[-2, -1])
 
         # Random crop (crop_size × crop_size) — padding ile sınır dışı korunur
-        _, _, h, w = degraded.shape
+        # Handle both 3D (C, H, W) and 4D (N, C, H, W) tensors
+        if degraded.dim() == 3:
+            _, h, w = degraded.shape
+        else:
+            _, _, h, w = degraded.shape
         crop = self.crop_size
         if h >= crop and w >= crop:
             top = int(torch.randint(0, h - crop + 1, (1,), generator=gen).item())
             left = int(torch.randint(0, w - crop + 1, (1,), generator=gen).item())
-            degraded = degraded[..., top:top + crop, left:left + crop]
-            clean = clean[..., top:top + crop, left:left + crop]
+            degraded = degraded[..., top : top + crop, left : left + crop]
+            clean = clean[..., top : top + crop, left : left + crop]
 
         return degraded, clean

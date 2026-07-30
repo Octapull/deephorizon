@@ -5,7 +5,7 @@ import mlflow
 import mlflow.pytorch
 import torch
 from omegaconf import DictConfig, OmegaConf
-from torch.amp import GradScaler, autocast
+from torch.cuda.amp import GradScaler, autocast
 
 from services.ml.evaluation.benchmark import (
     ValidationSummary,
@@ -54,6 +54,7 @@ def train(cfg: DictConfig) -> Path:
         minio_prefix=cfg.data.minio_prefix,
         augment=cfg.data.augment,
         crop_size=cfg.data.crop_size,
+        split=cfg.data.get("split", None),
     )
 
     # Model
@@ -73,7 +74,9 @@ def train(cfg: DictConfig) -> Path:
     # AMP (Mixed Precision) — cfg.training.amp=true ise FP16/BF16 ile eğitim
     # L40S BF16 destekliyor (daha kararlı, FP16'dan overflow riski düşük)
     use_amp = bool(cfg.training.amp) and device.type == "cuda"
-    amp_dtype = torch.bfloat16 if cfg.training.amp_dtype == "bfloat16" else torch.float16
+    amp_dtype = (
+        torch.bfloat16 if cfg.training.amp_dtype == "bfloat16" else torch.float16
+    )
     # GradScaler sadece FP16 için gerekli (BF16'da scaler no-op)
     scaler = GradScaler("cuda", enabled=use_amp and amp_dtype == torch.float16)
 
@@ -104,7 +107,8 @@ def train(cfg: DictConfig) -> Path:
                 clean = clean.to(device, dtype=torch.float32)
 
                 # AMP forward pass — autocast context manager ile
-                with autocast("cuda", enabled=use_amp, dtype=amp_dtype):
+                # torch 2.2.x: torch.cuda.amp.autocast(enabled=..., dtype=...)
+                with autocast(enabled=use_amp, dtype=amp_dtype):
                     prediction = model(degraded)
                     loss = criterion(prediction, clean)
                     # Accumulation: loss'u grad_accum_steps'e böl (gradient'lerin

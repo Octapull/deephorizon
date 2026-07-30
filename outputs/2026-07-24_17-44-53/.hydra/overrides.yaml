@@ -1,0 +1,7 @@
+- training.epochs=2
+- data.use_minio=false
+- data.root_dir=data/training
+- data.split=medium
+- data.augment=false
+- mlflow.tracking_uri=sqlite:///mlflow.db
+- mlflow.log_model=false

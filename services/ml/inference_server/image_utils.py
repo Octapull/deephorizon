@@ -10,6 +10,7 @@ Supported formats:
     - FITS: via ``astropy.io.fits`` (lazy import, optional)
     - Raw float32: ``application/octet-stream`` with explicit width/height
 """
+
 from __future__ import annotations
 
 import io
@@ -17,7 +18,6 @@ from typing import Literal
 
 import numpy as np
 import torch
-
 
 # ---------------------------------------------------------------------------
 # Decoding: bytes → tensor
@@ -115,9 +115,7 @@ def _decode_raw_float32(
 ) -> torch.Tensor:
     """Decode raw float32 bytes → (1, 1, H, W) float32 [0, 1]."""
     if width is None or height is None:
-        raise ValueError(
-            "application/octet-stream requires explicit width and height"
-        )
+        raise ValueError("application/octet-stream requires explicit width and height")
 
     expected_bytes = width * height * 4  # float32 = 4 bytes
     if len(data) != expected_bytes:
@@ -193,6 +191,9 @@ def _encode_pil(
     # (C, H, W) → (H, W, C) for Pillow
     if array.ndim == 3:
         array_hwc = array.transpose(1, 2, 0)
+        # Grayscale (H, W, 1) → (H, W) for Pillow L mode
+        if array_hwc.shape[-1] == 1:
+            array_hwc = array_hwc[..., 0]
     else:
         array_hwc = array
 
@@ -240,4 +241,9 @@ def _encode_raw_float32(
     else:
         array_2d = array
 
-    return array_2d.astype(np.float32).tobytes(), "application/octet-stream", width, height
+    return (
+        array_2d.astype(np.float32).tobytes(),
+        "application/octet-stream",
+        width,
+        height,
+    )

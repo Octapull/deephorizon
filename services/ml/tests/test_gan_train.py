@@ -12,6 +12,7 @@ helper functions in isolation:
 These tests use a minimal DictConfig stub to avoid loading the full
 Hydra config tree.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -31,7 +32,6 @@ from services.ml.training.gan_train import (
     _train_discriminator_step,
     _train_generator_step,
 )
-
 
 # ---------------------------------------------------------------------------
 # Config stub
@@ -230,7 +230,7 @@ def test_build_optimizers_adam() -> None:
 
 def test_train_discriminator_step_returns_float() -> None:
     """_train_discriminator_step → float loss döner."""
-    discriminator = PatchDiscriminator(in_channels=2)
+    discriminator = PatchDiscriminator(in_channels=2, base_channels=4, n_layers=2)
     d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=1e-3)
     d_loss_fn = DiscriminatorAdversarialLoss(mode="lsgan")
 
@@ -256,7 +256,7 @@ def test_train_discriminator_step_returns_float() -> None:
 
 def test_train_discriminator_step_updates_params() -> None:
     """_train_discriminator_step → D parametreleri değişir."""
-    discriminator = PatchDiscriminator(in_channels=2)
+    discriminator = PatchDiscriminator(in_channels=2, base_channels=4, n_layers=2)
     d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=1e-3)
     d_loss_fn = DiscriminatorAdversarialLoss(mode="lsgan")
 
@@ -294,7 +294,7 @@ def test_train_discriminator_step_updates_params() -> None:
 def test_train_generator_step_returns_components() -> None:
     """_train_generator_step → dict with 'total', 'pixel', 'adversarial'."""
     generator = Pix2PixGenerator(in_channels=1, out_channels=1)
-    discriminator = PatchDiscriminator(in_channels=2)
+    discriminator = PatchDiscriminator(in_channels=2, base_channels=4, n_layers=2)
     g_optimizer = torch.optim.Adam(generator.parameters(), lr=1e-3)
     g_loss_fn = CombinedLoss(
         pixel_weight=100.0,
@@ -326,7 +326,7 @@ def test_train_generator_step_returns_components() -> None:
 def test_train_generator_step_updates_params() -> None:
     """_train_generator_step → G parametreleri değişir."""
     generator = Pix2PixGenerator(in_channels=1, out_channels=1)
-    discriminator = PatchDiscriminator(in_channels=2)
+    discriminator = PatchDiscriminator(in_channels=2, base_channels=4, n_layers=2)
     g_optimizer = torch.optim.Adam(generator.parameters(), lr=1e-3)
     g_loss_fn = CombinedLoss(
         pixel_weight=100.0,
