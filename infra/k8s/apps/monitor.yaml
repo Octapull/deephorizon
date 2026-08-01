@@ -1,0 +1,22 @@
+# Monitoring stack (kustomize). Grafana admin parolasi Git'te degil:
+# 'grafana-admin' SealedSecret'i elle apply edilmeli (bkz. docs/MONITORING.md).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitor
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/monitor
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deephorizon-monitor
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

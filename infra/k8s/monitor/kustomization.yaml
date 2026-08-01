@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - prometheus.yaml
+  - node-exporter.yaml
+  - kube-state-metrics.yaml
+  - grafana.yaml
+
+# Dashboard JSON'lari 'grafana-dashboards' ConfigMap'ine cevrilir. Yeni pano = buraya dosya ekle.
+configMapGenerator:
+  - name: grafana-dashboards
+    namespace: deephorizon-monitor
+    files:
+      - dashboards/deephorizon-cluster.json
+
+# Hash sonekini kapat: ConfigMap adi sabit kalsin (grafana.yaml ada gore baglaniyor).
+generatorOptions:
+  disableNameSuffixHash: true
