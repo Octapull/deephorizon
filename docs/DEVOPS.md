@@ -331,6 +331,97 @@ mc admin policy attach dh dvc-read --user ml-team
 
 ---
 
+## 12. Takım Erişimi ve RBAC (7 Ağustos 2026)
+
+Takıma sunucu erişimi verilirken cluster'ın yetkilendirmesinin **hiç açık
+olmadığı** ortaya çıktı. İki iş aynı gün yapıldı.
+
+### SSH
+
+Model: **paylaşımlı `root` hesabı + kişi başı ayrı key**. Kişi başı Unix
+kullanıcısı önerildi (denetlenebilirlik, tek kişinin erişimini iptal
+edebilme) ama proje sahibi paylaşımlı hesapta karar kıldı.
+
+```bash
+# kisi basi, diske yazmadan (/dev/shm RAM'de):
+ssh-keygen -t ed25519 -a 100 -N '' -C "<isim>@deephorizon" -f /dev/shm/<isim>
+cat /dev/shm/<isim>.pub >> /root/.ssh/authorized_keys
+cat /dev/shm/<isim>                       # private key -> kisiye ver
+shred -u /dev/shm/<isim> /dev/shm/<isim>.pub
+```
+
+`/etc/ssh/sshd_config.d/99-deephorizon.conf`:
+```
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+AuthenticationMethods publickey
+PermitRootLogin prohibit-password
+PermitEmptyPasswords no
+LogLevel VERBOSE
+```
+
+- Dosya adı **`99-`** ile başlamalı: Ubuntu'da cloud-init `50-cloud-init.conf`
+  içine `PasswordAuthentication yes` yazar ve drop-in'ler sırayla okunur.
+- `PermitRootLogin` **`no` değil `prohibit-password`** — takım root ile
+  girdiği için `no` herkesi kilitler.
+- **`LogLevel VERBOSE` paylaşımlı hesapta tek attribution mekanizmasıdır:**
+  sshd her girişte kullanılan key'in fingerprint'ini loglar.
+  ```bash
+  journalctl -u ssh | grep "Accepted publickey"
+  ssh-keygen -lf /root/.ssh/authorized_keys      # fingerprint -> isim
+  ```
+  Bu yüzden `authorized_keys`'teki `isim@deephorizon` yorumları bozulmamalı.
+- Erişim iptali: `authorized_keys`'ten ilgili satırı silmek yeterli, diğerleri
+  etkilenmez.
+- `PasswordAuthentication no` uygulamadan **önce** kendi key girişini doğrula;
+  `sshd -t` ile sözdizimini kontrol et, mevcut oturumu kapatma.
+
+ML ekibi için istisna: `betul` adında **ayrı, yetkisiz** kullanıcı (sudo yok,
+`microk8s` grubunda değil), `~/.kube/config` olarak scoped ServiceAccount
+token'ı. Paylaşımlı root'a girselerdi `microk8s` üzerinden zaten cluster-admin
+olacaklardı ve scoped kubeconfig'in bir hükmü kalmayacaktı.
+
+### RBAC
+
+Bkz. **Hata #10** — cluster 24 gündür `AlwaysAllow` ile çalışıyormuş.
+`microk8s enable rbac` ile açıldı (`--authorization-mode=RBAC,Node`).
+
+ML ekibinin `ml-trainer` ServiceAccount'u `deephorizon-ml` namespace'ine
+scoped bir Role/RoleBinding taşıyor (Job aç/sil, pod+log oku, PVC/ConfigMap/
+Secret yönet). GPU'yu görebilmesi için ayrıca yalnızca `nodes` okuma veren dar
+bir ClusterRole eklendi (`ml-trainer-node-read`).
+
+> 🔴 **Açık iş:** bu RBAC kaynakları **elle apply edildi**, GitOps'ta değil.
+> `infra/k8s/rbac/` altına manifest + `apps/rbac.yaml` Application eklenmeli;
+> aksi halde cluster yeniden kurulduğunda kaybolur.
+
+## 13. Eğitim Altyapısı (7 Ağustos 2026)
+
+ML ekibi eğitimi Kubernetes Job olarak koşturuyor; GPU'yu scheduler dağıtıyor.
+Kullanım rehberi: [`runbooks/ML-TRAINING.md`](runbooks/ML-TRAINING.md).
+
+- **İmaj:** `infra/docker/training.Dockerfile` — stok PyTorch CUDA imajı
+  (`pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime`) tabanlı. Torch pip ile
+  kurulmadı: GB'larca indirme ve CUDA/sürücü eşleşmesi riski. Non-root çalışır,
+  yalnızca `services/ml` kopyalanır.
+- **Registry:** MicroK8s'in yerleşiği (`localhost:32000`). Etiket tarih bazlı;
+  `latest` kullanılmaz — Kubernetes aynı etiketi yeniden çekmez.
+- **MinIO:** eğitim için ayrı `ml-trainer` kullanıcısı (`ml-read` policy).
+  `ml-team`'in parolasına dokunulmadı — o credential insanlar tarafından da
+  kullanılıyor, değişse eğitim Job'ları da kırılırdı.
+- **Secret:** `minio-ml-credentials` (SealedSecret, `deephorizon-ml`).
+- **`/dev/shm`:** Job şablonunda `emptyDir` ile 8Gi. Konteyner varsayılanı
+  64 MB'tır ve `num_workers>0` olan PyTorch DataLoader worker'ları `Bus error`
+  ile düşer.
+
+Uçtan uca doğrulama (1 epoch, 10.000 çift): GPU tahsisi ✓ · MinIO'dan veri ✓ ·
+MLflow parametre + metrik + artifact ✓. Kalan hatalar uygulama katmanında
+(Hydra config varsayılanları, `mlflow.pytorch.log_model` MLflow 3.x uyumu) ve
+ML squad'a devredildi.
+
+---
+
 ## Karşılaşılan Hatalar: Sebep ve Çözüm
 
 ### #1 — `mokutil --sb-state` → `EFI variables are not supported on this system`
@@ -436,6 +527,65 @@ mc admin policy attach dh dvc-read --user ml-team
 - **Ders:** "migrate" araçları bootstrap araçları değildir — ilk kurulum (boş DB) ve
   sürüm yükseltme ayrı senaryolardır; manifest'i ikisiyle de test et.
 
+### #10 — Cluster'da RBAC hiç açılmamıştı (`--authorization-mode=AlwaysAllow`)
+
+- **Belirti:** ML ekibine verilen namespace'e scoped kubeconfig ile
+  `kubectl auth can-i --list` `*.*` üzerinde `*` döndü; kullanıcı `kube-system`
+  dahil her yeri listeleyebiliyordu. Oysa ServiceAccount'un tek binding'i
+  `deephorizon-ml`'e scoped bir RoleBinding'di ve **bir Role namespace dışına
+  yetki veremez**. Aranan ClusterRoleBinding da yoktu — yani fazladan yetkiyi
+  veren bir kaynak bulunamıyordu.
+- **Neden:** MicroK8s'te `rbac` addon'u **varsayılan olarak kapalıdır**; API
+  server `--authorization-mode=AlwaysAllow` ile çalışır ve kimlik doğrulamasını
+  geçen her istek yetkilendirmeden muaf olur. Bootstrap zincirinde
+  (`hostpath-storage`, `nvidia`, `community`, `argocd`) `rbac` atlanmıştı.
+  Sonuç: 24 gün boyunca cluster'daki her ServiceAccount — Argo CD, Airflow
+  worker'ları, her pod'un `default` SA'sı dahil — fiilen cluster-admin'di.
+  RBAC manifest'leri yazılmıştı ama hiçbiri uygulanmıyordu.
+- **Çözüm:** `microk8s enable rbac` → `--authorization-mode=RBAC,Node`.
+  Öncesinde üç hazırlık: (a) admin sertifikasının `O = system:masters` olduğu
+  doğrulandı — bu grup RBAC'tan muaftır, kilitlenme riski yok; (b) pod'ların
+  kullandığı SA'lar ile binding'i olan SA'lar karşılaştırıldı, binding'i
+  eksik olanların hiçbiri API'ye konuşmuyordu; (c) `kube-apiserver` args
+  dosyası ve cluster snapshot'ı yedeklendi
+  (`/root/kube-apiserver.args.bak`, `/root/cluster-snapshot-2026-08-07.yaml`).
+  Açılış sonrası hiçbir pod düşmedi, Argo CD'nin 8 Application'ı Synced/Healthy
+  kaldı, Prometheus hedefleri ayakta.
+- **Ders:** "RBAC manifest'i yazdım" ile "RBAC uygulanıyor" aynı şey değildir.
+  Yeni bir cluster'da ilk doğrulama `auth can-i` değil, **authorization
+  mode'un kendisi** olmalı:
+  ```bash
+  grep authorization /var/snap/microk8s/current/args/kube-apiserver
+  ```
+  Kısıtlı olduğunu varsaydığın her kimlik için `kubectl auth can-i --list`
+  çıktısını gözünle gör — `*.*` görüyorsan kısıtlama yok demektir.
+
+### #11 — MLflow artifact yüklerken `OOMKilled` → `CrashLoopBackOff`
+
+- **Belirti:** İlk eğitim koşusu bitti, `best_model.pt` yazıldı, ardından
+  istemci `RemoteDisconnected` → `Connection refused` ile yükleyemedi. MLflow
+  pod'u 4 restart'la CrashLoopBackOff'taydı.
+- **Neden:** Artifact'lar tracking sunucusunun proxy'sinden geçiyor
+  (`--artifacts-destination`, §10'daki bilinçli karar: ML tarafına S3
+  credential'ı dağıtmamak). Model dosyası MinIO'ya giderken MLflow'un
+  belleğinden akıyor. Üstüne MLflow 3.x uvicorn'u **varsayılan 4 worker**
+  açıyor ve her biri uygulamayı ayrı yüklüyor — 2Gi limiti daha yükleme
+  başlamadan doluya yakındı. Döngü kendini besliyordu: istemci yüklemeyi
+  yeniden deniyor, MLflow her ayağa kalkışında tekrar ölüyordu.
+- **Çözüm:** Önce **Job silindi** (döngüyü kıran adım budur; tek başına limit
+  yükseltmek yetmez, istemci yeniden denemeye devam eder). Sonra
+  `--workers 2` + limit 2Gi → 4Gi. Başarılı yüklemeden sonra gerçek tepe
+  Prometheus'tan ölçüldü: **1.71 GiB**; limit ona göre boyutlandırıldı.
+- **Ders:** `kubectl top` bu kümede çalışmaz (`metrics-server` addon'u kapalı);
+  bellek ölçümü Prometheus'tan yapılır:
+  ```
+  max_over_time(container_memory_working_set_bytes{
+    namespace="deephorizon-ml",container="mlflow"}[45m])
+  ```
+  Ayrıca: proxy'lenen artifact yüklemesi model boyutuyla ölçeklenmiyor. U-Net
+  checkpoint'i için tepe 1.71 GiB — ESRGAN/Restormer'a geçildiğinde
+  "istemci doğrudan MinIO'ya yazsın" seçeneği yeniden tartılmalı.
+
 ---
 
 ## Bitiş Durumu ve Sıradaki İşler
@@ -444,13 +594,21 @@ mc admin policy attach dh dvc-read --user ml-team
 `nvidia.com/gpu: 1` + `Test PASSED` ✓ · Sealed Secrets (yedekli) ✓ · Argo CD + repo ✓ ·
 NPM 80/443 ✓ · UFW ✓ · **App-of-apps sync'liyor** ✓ · **MinIO Running + ilk eğitim
 seti (20 GiB) yüklü, erişim kontrollü** ✓ · **MLflow canlı** (Postgres backend +
-MinIO artifact store, uçtan uca smoke test — bkz. §10) ✓
+MinIO artifact store, uçtan uca smoke test — bkz. §10) ✓ · **RBAC etkin**
+(`RBAC,Node` — bkz. §12 / Hata #10) ✓ · **Takım SSH erişimi key bazlı, parola
+girişi kapalı** ✓ · **Eğitim Job olarak koşuyor** (GPU + MinIO + MLflow uçtan
+uca doğrulandı — bkz. §13) ✓
 
 | Sıradaki iş | Sahibi | Not |
 |:---|:---|:---|
-| Postgres yedeği (MLflow) | DevOps | Experiment metadata tek hostpath diskte; `pg_dump` → MinIO CronJob'ı yazılmalı |
-| MinIO root parola rotasyonu | DevOps | Parola sohbet kanalına yapıştırılmıştı; yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart. MLflow root kullanmıyor (§10) — rotasyonun önünde engel yok |
+| Postgres yedeği (MLflow) | DevOps | Experiment metadata tek hostpath diskte; `pg_dump` → MinIO CronJob'ı yazılmalı. **Geri dönüşü olmayan tek risk — en yüksek öncelik** |
 | Argo CD sürüm yükseltme | DevOps | v2.7.2 → güncel; **UI internete açılmadan önce** (resmi Helm chart'ına geçilerek) |
+| MinIO root parola rotasyonu | DevOps | Parola sohbet kanalına yapıştırılmıştı; yeni parolayla SealedSecret'ı yeniden seal'le → merge → pod restart. MLflow root kullanmıyor (§10) — rotasyonun önünde engel yok |
+| `ml-trainer` RBAC'ını GitOps'a al | DevOps | §12: Role/RoleBinding + `ml-trainer-node-read` ClusterRole elle apply edildi. `infra/k8s/rbac/` + `apps/rbac.yaml` yazılmalı, yoksa cluster yeniden kurulunca kaybolur |
+| Monitoring'i GitOps'a al | DevOps | Prometheus/Grafana elle kurulu (`docs/MONITORING.md`), `infra/k8s/monitor/` boş. Aynı kaybolma riski |
+| CI'ı aç (`ci.yml.disabled`) | DevOps | Ana CI hâlâ kapalı; ML tarafında yazılmış testlerin hiçbiri PR'da koşmuyor |
+| API / frontend / inference manifest'leri | Platform | Kod hazır ama imaj build+push yolu ve K8s manifest'i yok; `deephorizon-app`'te yalnızca Redis var. İmaj etiketleme politikası da belirsiz (elle mi, Argo CD Image Updater mı, CI commit'i mi) |
 | Domain + NPM proxy host'ları | DevOps | Domain alınınca: A kaydı → sunucu IP; NodePort→domain eşlemeleri + Let's Encrypt; sonrasında SSH tünellerine gerek kalmaz |
-| Airflow (`deephorizon-data`) | Data squad | Veri üretimi şimdilik elle (`scripts/` + `mc mirror`); DAG'lar yazılınca aynı GitOps reçetesi |
+| `metrics-server` addon'u | DevOps | `kubectl top` çalışmıyor; ölçüm Prometheus'tan yapılıyor (Hata #11). HPA'nın da ön koşulu |
+| Hydra config düzeltmeleri | ML squad | `conf/data/default.yaml` prefix'i (`training-512/v1`), `conf/loss/default.yaml` varsayılanı (`combined` → `train.py` dict bekleyemiyor), `mlflow.pytorch.log_model` MLflow 3.x uyumu. Şu an override'la geçiliyor — bkz. `runbooks/ML-TRAINING.md` |
 | GPU contention politikası | ML+DevOps | Training/inference manifest'leri yazılırken "default mode": training öncesi inference `replicas: 0` (root README) |
