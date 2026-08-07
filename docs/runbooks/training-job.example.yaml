@@ -27,6 +27,10 @@ spec:
           image: localhost:32000/deephorizon-training:2026-08-07
           # Hyperparametre override'lari (Hydra). Bos birakirsan
           # services/ml/conf/ altindaki varsayilanlar gecerli olur.
+          #
+          # `command` YAZMA. Imajin ENTRYPOINT'i egitim komutunu tasiyor ve
+          # buradaki args onun sonuna eklenir. `command` yazarsan ENTRYPOINT
+          # ezilir ve Hydra override'lari calismaz.
           args:
             - "training.epochs=50"
             - "training.batch_size=16"

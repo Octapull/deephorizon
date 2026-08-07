@@ -40,10 +40,22 @@ docker push localhost:32000/deephorizon-training:$TAG
   namespace'i). Cluster imajı oradan çeker; harici bir registry gerekmez.
 - **`latest` etiketi kullanma.** Kubernetes aynı etiketi yeniden çekmez;
   imajı güncellersin, Job eski katmanla koşar ve fark günlerce görülmez.
-- Eğitim kodu şu an `ml/feature` dalında. Merge edilene kadar build o dalın
-  klonundan alınır:
+- Eğitim kodu şu an `ml/feature` dalında, Dockerfile `main`'de. Merge etmeye
+  gerek yok — kodu `ml/feature`'dan al, üç dosyayı `main`'den üzerine giydir:
   ```bash
-  git fetch origin && git checkout ml/feature
+  git fetch origin
+  git checkout -B build/training origin/ml/feature
+  git checkout origin/main -- \
+    infra/docker/training.Dockerfile \
+    infra/docker/training.Dockerfile.dockerignore \
+    requirements/ml.txt
+  ```
+  **İkinci `checkout`'ta `--` ve dosya listesini düşürme.** `git checkout
+  origin/main` (dosya listesi olmadan) tüm ağacı `main`'e çevirir; build
+  sessizce `main`'in `services/ml`'iyle yapılır ve ilk koşu `No module named
+  services.ml.training.train` ile düşer. Build'den önce doğrula:
+  ```bash
+  ls services/ml/training/train.py services/ml/conf/config.yaml
   ```
 
 Doğrulama — imaj cluster'dan çekilebiliyor mu:
@@ -156,6 +168,8 @@ ve model MLflow'da kalır — pod'un silinmesi sonuçları kaybettirmez.
 | `ImagePullBackOff` | Etiket yanlış ya da imaj push'lanmamış | Manifest'teki etiketi DevOps'un push'ladığıyla karşılaştır |
 | `CreateContainerConfigError` | `minio-ml-credentials` Secret'ı yok | DevOps → A2 |
 | `ModuleNotFoundError` | İmaj eski, yeni bağımlılık eklenmiş | DevOps yeni etiketle build+push eder |
+| `StartError` + `exec: "training.epochs=1": executable file not found` | Manifest'te `command` yazılmış, ENTRYPOINT ezilmiş | Manifest'ten `command` satırını sil; `args` tek başına yeterli |
+| `No module named services.ml.training.train` | İmaj yanlış daldan build edilmiş (`main`'in `services/ml`'i girmiş) | DevOps → A1'deki checkout doğrulaması |
 | `Bus error` / DataLoader worker çöküyor | `/dev/shm` varsayılanı 64 MB | Şablondaki `dshm` volume'u manifest'te duruyor mu kontrol et; yoksa `data.num_workers=0` ile geç |
 | `CUDA out of memory` | Batch büyük | `training.batch_size` düşür, `data.crop_size` küçült ya da `training.amp=true` (L40S bf16 destekler) |
 | MinIO'dan dosya listelenmiyor, 0 örnek | Prefix yanlış (aşağıdaki nota bak) | `mc ls` ile gerçek yolu doğrula, `data.minio_prefix` override'la |
@@ -170,12 +184,20 @@ kubectl describe pod <pod-adi>       # en alttaki Events bolumu
 
 ## Bilinen açıklar / dikkat
 
-- **MinIO prefix'i doğrulanmalı.** `services/ml/conf/data/default.yaml` şu an
-  `bucket_name: datasets` **ve** `minio_prefix: datasets/training-512/v1`
-  diyor. `docs/DATA.md`'deki düzen `datasets` bucket'ı + `training-512/v1/`
-  prefix'i. İkisi doğruysa boto3 `datasets/datasets/training-512/v1` arar ve
-  hiçbir şey bulamaz. İlk koşudan önce `mc ls dh/datasets/` ile gerçek yolu
-  teyit edin.
+- **MinIO prefix'i yanlış (doğrulandı, 2026-08-07).**
+  `services/ml/conf/data/default.yaml` `bucket_name: datasets` **ve**
+  `minio_prefix: datasets/training-512/v1` diyor. Sunucudaki gerçek düzen:
+  ```
+  $ mc ls dh/datasets/training-512/v1/
+  clean/   degraded/
+  ```
+  Yani prefix `training-512/v1` olmalı; mevcut haliyle boto3
+  `datasets/datasets/training-512/v1` arar ve sıfır dosya bulur. Config
+  düzeltilene kadar her koşuya override eklenmeli:
+  ```
+  args: ["data.minio_prefix=training-512/v1"]
+  ```
+  Kalıcı düzeltme ML squad'da.
 - **Tek GPU.** İkinci Job `Pending` bekler; bu doğru davranış. Inference
   deploy edildiğinde kök README'deki "training öncesi inference `replicas: 0`"
   politikası devreye girecek.
