@@ -116,19 +116,25 @@ spec:
           # MLflow'un bellegini kullanir. 2Gi limitiyle ilk model yuklemesinde
           # OOMKilled olup CrashLoopBackOff'a girdi (2026-08-07, U-Net
           # best_model.pt). Istemci yeniden denedigi icin dongu kendini
-          # besliyordu. Buyuk model artifact'lari icin bas parmak kurali:
-          # limit >= en buyuk tek artifact'in birkac kati.
+          # besliyordu.
           #
           # --workers 2 (yukarida): MLflow 3.x uvicorn'u varsayilan 4 worker
           # aciyor; her biri uygulamayi ayri yukluyor. Tek kullanicili bir
-          # tracking sunucusu icin 2 yeterli ve taban bellegi yariya iner.
+          # tracking sunucusu icin 2 yeterli.
+          #
+          # OLCULEN (2026-08-07, 2 worker + basarili model yuklemesi):
+          # container_memory_working_set_bytes tepe = 1.71 GiB. 4Gi ~2.3x pay
+          # birakir. Model artifact'lari buyurse yeniden olc:
+          #   max_over_time(container_memory_working_set_bytes{
+          #     namespace="deephorizon-ml",container="mlflow"}[45m])
+          # (kubectl top calismaz — metrics-server addon'u kapali.)
           resources:
             requests:
               cpu: 250m
               memory: 1Gi
             limits:
               cpu: "2"
-              memory: 6Gi
+              memory: 4Gi
 ---
 apiVersion: v1
 kind: Service
