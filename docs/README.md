@@ -12,6 +12,7 @@ Project documentation that does not belong in source-level READMEs.
 | [`AIRFLOW.md`](AIRFLOW.md) | **Airflow rehberi (TR)** — veri pipeline orkestrasyonu: erişim, DAG teslimi (git-sync), çalışma ortamı kontratı (env, workspace, imaj), Data squad'dan kalanlar. **DAG yazacak kişinin adresi.** |
 | [`DEVOPS.md`](DEVOPS.md) | **DevOps kurulum günlüğü (TR)** — GPU sunucu bootstrap'ının tamamı: NVIDIA sürücü, MicroK8s + GPU addon, Sealed Secrets, Argo CD, NPM, UFW; karşılaşılan hatalar, sebepleri ve çözümleri. |
 | [`MONITORING.md`](MONITORING.md) | **Monitoring rehberi (TR)** — Prometheus + Grafana + exporter'lar + GPU (dcgm): erişim, ne izlenir, dashboard'lar, `grafana-admin` SealedSecret akışı, yeni scrape/dashboard ekleme. |
+| [`runbooks/ML-TRAINING.md`](runbooks/ML-TRAINING.md) | **Eğitim runbook'u (TR)** — GPU sunucuda Kubernetes Job ile model eğitimi: imaj build'i, MinIO credential'ı, Job şablonu, izleme, sorun giderme. **Eğitim koşacak kişinin adresi.** |
 | `adr/` | Architecture Decision Records — one file per non-trivial decision |
 | `runbooks/` | On-call / incident playbooks (one per failure mode) |
 
