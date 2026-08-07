@@ -174,6 +174,7 @@ ve model MLflow'da kalır — pod'un silinmesi sonuçları kaybettirmez.
 | `CUDA out of memory` | Batch büyük | `training.batch_size` düşür, `data.crop_size` küçült ya da `training.amp=true` (L40S bf16 destekler) |
 | MinIO'dan dosya listelenmiyor, 0 örnek | Prefix yanlış (aşağıdaki nota bak) | `mc ls` ile gerçek yolu doğrula, `data.minio_prefix` override'la |
 | `Forbidden` | Namespace dışına çıkılmaya çalışıldı | Yetki `deephorizon-ml` ile sınırlı; ihtiyaç varsa DevOps'a yaz |
+| Eğitim bitti ama artifact yüklenmiyor: `RemoteDisconnected` → `Connection refused` | MLflow artifact yüklerken OOMKilled oldu ve CrashLoopBackOff'a girdi | **Önce Job'ı sil** — istemci yeniden denedikçe MLflow'u tekrar öldürür ve döngü kapanmaz. Sonra `kubectl -n deephorizon-ml describe pod -l app=mlflow \| grep -A5 "Last State"` ile teyit et, DevOps limiti yükseltir |
 
 Pod'un neden başlamadığını anlamanın tek adresi:
 ```bash
