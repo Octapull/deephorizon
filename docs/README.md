@@ -11,6 +11,7 @@ Project documentation that does not belong in source-level READMEs.
 | [`DVC.md`](DVC.md) | **DVC rehberi (TR)** — veri versiyonlama: `dvc-cache` remote'unun kurulumu (`dvc init` + `remote add`), push/pull kullanımı, eski sürüme dönme. **DVC kullanacak kişinin adresi.** |
 | [`AIRFLOW.md`](AIRFLOW.md) | **Airflow rehberi (TR)** — veri pipeline orkestrasyonu: erişim, DAG teslimi (git-sync), çalışma ortamı kontratı (env, workspace, imaj), Data squad'dan kalanlar. **DAG yazacak kişinin adresi.** |
 | [`DEVOPS.md`](DEVOPS.md) | **DevOps kurulum günlüğü (TR)** — GPU sunucu bootstrap'ının tamamı: NVIDIA sürücü, MicroK8s + GPU addon, Sealed Secrets, Argo CD, NPM, UFW; karşılaşılan hatalar, sebepleri ve çözümleri. |
+| [`MONITORING.md`](MONITORING.md) | **Monitoring rehberi (TR)** — Prometheus + Grafana + exporter'lar + GPU (dcgm): erişim, ne izlenir, dashboard'lar, `grafana-admin` SealedSecret akışı, yeni scrape/dashboard ekleme. |
 | `adr/` | Architecture Decision Records — one file per non-trivial decision |
 | `runbooks/` | On-call / incident playbooks (one per failure mode) |
 
