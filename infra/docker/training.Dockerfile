@@ -55,6 +55,14 @@ RUN useradd --create-home trainer \
 USER trainer
 WORKDIR /workspace
 
-# Hyperparametreler Job manifest'indeki `args` ile gecilir:
+# ENTRYPOINT — CMD DEGIL. Kubernetes'te manifest'e yazilan `args` CMD'nin
+# YERINE gecer, ENTRYPOINT'in ise SONUNA eklenir. Egitim komutu sabit ve `args`
+# yalnizca Hydra override'lari tasidigi icin dogru olan ENTRYPOINT:
 #   args: ["training.epochs=50", "training.batch_size=16"]
-CMD ["python", "-m", "services.ml.training.train"]
+# CMD ile yazildiginda pod "exec: training.epochs=50: executable file not
+# found" ile StartError'a duser.
+#
+# Imajda kabuk acmak gerekirse ENTRYPOINT'i atla:
+#   docker run --rm --entrypoint bash <imaj>
+#   kubectl run dbg --image=<imaj> --command -- bash
+ENTRYPOINT ["python", "-m", "services.ml.training.train"]
