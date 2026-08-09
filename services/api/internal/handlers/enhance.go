@@ -9,6 +9,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -114,15 +115,16 @@ func (h *Handler) runEnhanceJob(jobID string, req *pb.EnhanceRequest) {
 
 	job, err := h.Jobs.Get(ctx, jobID)
 	if err != nil {
+		log.Printf("enhance job %s: job store'dan okunamadı, running'e geçirilemedi: %v", jobID, err)
 		return
 	}
 	job.Status = jobstore.StatusRunning
-	_ = h.Jobs.Update(ctx, job)
+	h.updateJob(ctx, job)
 
 	if h.GRPCClient == nil {
 		job.Status = jobstore.StatusFailed
 		job.Error = "inference service bağlantısı yok (mock modda çalışılıyor)"
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 		metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		return
 	}
@@ -131,13 +133,13 @@ func (h *Handler) runEnhanceJob(jobID string, req *pb.EnhanceRequest) {
 	if err != nil {
 		job.Status = jobstore.StatusFailed
 		job.Error = err.Error()
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 		metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		return
 	}
 
 	applyEnhanceResponse(job, resp)
-	_ = h.Jobs.Update(ctx, job)
+	h.updateJob(ctx, job)
 	metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 }
 
@@ -262,14 +264,14 @@ func (h *Handler) runEnhanceBatchJob(jobs []*jobstore.Job, req *pb.EnhanceBatchR
 
 	for _, job := range jobs {
 		job.Status = jobstore.StatusRunning
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 	}
 
 	if h.GRPCClient == nil {
 		for _, job := range jobs {
 			job.Status = jobstore.StatusFailed
 			job.Error = "inference service bağlantısı yok (mock modda çalışılıyor)"
-			_ = h.Jobs.Update(ctx, job)
+			h.updateJob(ctx, job)
 			metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		}
 		return
@@ -280,7 +282,7 @@ func (h *Handler) runEnhanceBatchJob(jobs []*jobstore.Job, req *pb.EnhanceBatchR
 		for _, job := range jobs {
 			job.Status = jobstore.StatusFailed
 			job.Error = err.Error()
-			_ = h.Jobs.Update(ctx, job)
+			h.updateJob(ctx, job)
 			metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		}
 		return
@@ -294,7 +296,7 @@ func (h *Handler) runEnhanceBatchJob(jobs []*jobstore.Job, req *pb.EnhanceBatchR
 		} else {
 			applyEnhanceResponse(job, responses[i])
 		}
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 		metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 	}
 }
