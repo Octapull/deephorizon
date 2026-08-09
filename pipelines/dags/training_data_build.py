@@ -41,6 +41,12 @@ MINIO_ALIAS  = os.environ["MINIO_ALIAS"]
 N_EXPECTED_PAIRS = 10_000
 GE_MAX_SAMPLE    = 500
 
+# Sabit hedef versiyon — docs/DATA.md'deki düzeni ML config'iyle senkron
+# tutar. Üretim parametreleri (PSF/gürültü/model dağılımı) değişmedikçe
+# sabit kalır; değiştiğinde elle v2'ye yükseltilir (bkz. docs/DATA.md
+# "Versiyonlama kuralı").
+DATASET_VERSION = "v1"
+
 # ─── Yardımcılar ─────────────────────────────────────────────────────────────
 
 def _validate_counts() -> None:
@@ -166,8 +172,11 @@ with DAG(
     @task()
     def upload_to_minio() -> str:
         """
-        Training verilerini MinIO datasets/training-512/<timestamp>/'ye yükler.
-        Her çalıştırma yeni timestamp prefix alır — eski sürümler korunur.
+        Training verilerini MinIO datasets/training-512/{DATASET_VERSION}/'ye
+        yükler. Sabit prefix — ML tarafının config'i aynı yolu okur
+        (bkz. docs/DATA.md). Üretim parametreleri değişmedikçe --overwrite
+        ile üzerine yazılır; parametre değişince DATASET_VERSION elle v2'ye
+        çıkarılır.
 
         Returns:
             "upload_ok_<version>"
@@ -176,7 +185,7 @@ with DAG(
             raise RuntimeError(f"{TRAINING_DIR} bulunamadı.")
 
         env         = mc_env()
-        version_tag = datetime.now().strftime("%Y%m%d-%H%M")
+        version_tag = DATASET_VERSION
         base        = f"{MINIO_ALIAS}/datasets/training-512/{version_tag}"
 
         for split in ("clean", "degraded"):
@@ -195,9 +204,13 @@ with DAG(
         return f"upload_ok_{version_tag}"
 
     # ── Bağımlılık zinciri ────────────────────────────────────────────────────
+    # Upload önce, dvc_track sonra — upload başarısız olursa dvc-cache'e hiç
+    # dokunulmaz (eht_ingest ve synthetic_generation ile aynı sıra; tersi,
+    # upload başarısız olduğunda dvc push'un zaten gitmiş olup datasets/
+    # bucket'ının güncellenmemesi gibi tutarsız bir state bırakırdı).
     gen       = generate_training()
     validated = validate_training()
-    tracked   = dvc_track()
     uploaded  = upload_to_minio()
+    tracked   = dvc_track()
 
-    gen >> validated >> tracked >> uploaded
+    gen >> validated >> uploaded >> tracked

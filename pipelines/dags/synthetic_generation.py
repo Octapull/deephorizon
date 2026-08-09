@@ -43,6 +43,10 @@ MINIO_ALIAS   = os.environ["MINIO_ALIAS"]
 N_EXPECTED_PAIRS = 1_000
 GE_MAX_SAMPLE    = 200
 
+# Sabit hedef versiyon — docs/DATA.md'deki düzeni korur. Üretim parametreleri
+# değişmedikçe sabit kalır; değiştiğinde elle v2'ye yükseltilir.
+DATASET_VERSION = "v1"
+
 _FILENAME_RE = re.compile(r"^(crescent|ring)_(light|medium|heavy|extreme)_")
 
 # ─── DAG ─────────────────────────────────────────────────────────────────────
@@ -166,8 +170,8 @@ with DAG(
     @task()
     def upload_to_minio() -> str:
         """
-        Sentetik veriyi MinIO raw/simulated-128/<timestamp>/'ye yükler.
-        Her çalıştırma timestamp'li yeni prefix alır.
+        Sentetik veriyi MinIO raw/simulated-128/{DATASET_VERSION}/'ye yükler.
+        Sabit prefix — docs/DATA.md'deki düzeni korur.
         pairs/ opsiyonel PNG önizlemeleri; eksikse atlanır.
 
         Returns:
@@ -177,7 +181,7 @@ with DAG(
             raise RuntimeError(f"{SIMULATED_DIR} bulunamadı.")
 
         env     = mc_env()
-        version_tag = datetime.now().strftime("%Y%m%d-%H%M")
+        version_tag = DATASET_VERSION
         base    = f"{MINIO_ALIAS}/raw/simulated-128/{version_tag}"
 
         for split in ("clean", "degraded"):
