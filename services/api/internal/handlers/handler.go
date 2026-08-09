@@ -33,7 +33,7 @@ func New(grpcClient *grpcclient.Client, jobs *jobstore.Store) *Handler {
 // trace of why in the pod logs.
 func (h *Handler) updateJob(ctx context.Context, job *jobstore.Job) {
 	if err := h.Jobs.Update(ctx, job); err != nil {
-		log.Printf("enhance job %s: durum güncellenemedi (%s): %v", job.ID, job.Status, err)
+		log.Printf("enhance job %s: failed to update status (%s): %v", job.ID, job.Status, err)
 	}
 }
 

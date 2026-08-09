@@ -57,7 +57,7 @@ func getenvMB(key string, fallbackMB int64) int64 {
 	}
 	mb, err := strconv.ParseInt(v, 10, 64)
 	if err != nil || mb <= 0 {
-		log.Printf("%s geçersiz (%q), varsayılan %dMB kullanılıyor", key, v, fallbackMB)
+		log.Printf("%s invalid (%q), using default %dMB", key, v, fallbackMB)
 		return fallbackMB << 20
 	}
 	return mb << 20
@@ -81,7 +81,7 @@ func main() {
 	grpcAddr := getenv("GRPC_ADDR", "localhost:50051")
 	grpcClient, err := grpcclient.New(grpcAddr)
 	if err != nil {
-		log.Printf("gRPC bağlantısı kurulamadı (mock modda çalışılıyor): %v", err)
+		log.Printf("gRPC connection failed (running in mock mode): %v", err)
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -92,7 +92,7 @@ func main() {
 
 	pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	if err := rdb.Ping(pingCtx).Err(); err != nil {
-		log.Printf("Redis'e bağlanılamadı, job store çalışmayacak: %v", err)
+		log.Printf("failed to connect to Redis, job store will not work: %v", err)
 	}
 	cancel()
 
@@ -128,19 +128,19 @@ func main() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("sunucu başlatılamadı: %v", err)
+			log.Fatalf("server failed to start: %v", err)
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("kapatma sinyali alındı, sunucu düzgün şekilde kapatılıyor...")
+	log.Println("shutdown signal received, shutting down gracefully...")
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("sunucu düzgün kapatılamadı: %v", err)
+		log.Printf("server did not shut down gracefully: %v", err)
 	}
 
 	// Let in-flight background /enhance jobs finish before yanking Redis
@@ -152,5 +152,5 @@ func main() {
 	}
 	rdb.Close()
 
-	log.Println("sunucu kapatıldı")
+	log.Println("server stopped")
 }
