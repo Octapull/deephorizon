@@ -31,10 +31,11 @@ def create_dataloader(
     drop_last=True,
     use_minio=False,
     bucket_name="datasets",
-    minio_prefix="datasets/training-512/v1",
+    minio_prefix="training-512/v1",
     augment=False,
     crop_size=256,
     split=None,
+    max_samples=None,
 ):
     dataset = BlackHoleDataset(
         root_dir,
@@ -44,6 +45,7 @@ def create_dataloader(
         augment=augment,
         crop_size=crop_size,
         split=split,
+        max_samples=max_samples,
     )
     return _create_loader(
         dataset,
@@ -66,10 +68,11 @@ def create_train_val_loaders(
     drop_last=True,
     use_minio=False,
     bucket_name="datasets",
-    minio_prefix="datasets/training-512/v1",
+    minio_prefix="training-512/v1",
     augment=False,
     crop_size=256,
     split=None,
+    max_samples=None,
 ):
     """Train + validation DataLoader oluşturur.
 
@@ -94,6 +97,7 @@ def create_train_val_loaders(
         augment=augment,
         crop_size=crop_size,
         split=split,
+        max_samples=max_samples,
     )
     dataset_size = len(train_full)
 
@@ -120,6 +124,7 @@ def create_train_val_loaders(
         augment=False,
         crop_size=crop_size,
         split=split,
+        max_samples=max_samples,
     )
     # Aynı index'leri kullanmak için val_subset'in index'lerini val_full'e uygula
     val_indices = val_subset.indices

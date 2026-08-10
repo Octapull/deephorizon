@@ -476,7 +476,12 @@ def train_gan(cfg: DictConfig) -> Path:
                 print(f"Best model updated: {best_checkpoint_path}")
                 mlflow.log_artifact(str(best_checkpoint_path))
                 if cfg.mlflow.get("log_model", True):
-                    mlflow.pytorch.log_model(generator, "best_generator")
+                    mlflow.pytorch.log_model(
+                        generator,
+                        name="best_generator",
+                        input_example=degraded[:1].detach().cpu().numpy(),
+                        serialization_format="pickle",
+                    )
 
             # Log artifacts
             if sample_dir is not None:

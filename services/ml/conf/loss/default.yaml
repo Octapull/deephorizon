@@ -4,7 +4,7 @@
 # Faz 2 Adım 12: perceptual, gan_g, gan_d, physics, combined
 
 loss:
-  name: combined                  # Faz 2: combined (pixel + perceptual + adv + physics)
+  name: l1                        # U-Net baseline; GAN combined loss'u kendi loop'unda kurar
   # Pixel loss tipi (combined modunda kullanılır)
   pixel_loss: l1                  # l1 | mse | smooth_l1
 

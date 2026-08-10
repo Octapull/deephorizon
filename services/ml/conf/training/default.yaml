@@ -20,6 +20,17 @@ training:
     patience: 5
     min_lr: 1.0e-6
 
+  # Validation plato yaptiginda gereksiz GPU suresini kes.
+  early_stopping:
+    enabled: true
+    min_epochs: 40
+    patience: 15
+    min_delta: 1.0e-5
+
+  # Bir onceki epoch checkpoint'inden devam etmek icin uzak pod yolu.
+  # Ornek: /app/checkpoints/epoch_42.pt
+  resume_from: null
+
   # Mixed precision (Faz 1 Adım 3'te kullanılacak)
   amp: false                       # true → torch.amp.autocast + GradScaler
   amp_dtype: bfloat16              # float16 | bfloat16 (L40S BF16 destekliyor)

@@ -11,6 +11,7 @@ def save_checkpoint(
     psnr: float,
     ssim: float,
     checkpoint_path,
+    scheduler=None,
 ):
     """Save model + optimizer + metrics to a checkpoint file.
 
@@ -27,8 +28,7 @@ def save_checkpoint(
     checkpoint_path = Path(checkpoint_path)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
 
-    torch.save(
-        {
+    payload = {
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
@@ -36,9 +36,11 @@ def save_checkpoint(
             "val_loss": val_loss,
             "psnr": psnr,
             "ssim": ssim,
-        },
-        checkpoint_path,
-    )
+        }
+    if scheduler is not None:
+        payload["scheduler_state_dict"] = scheduler.state_dict()
+
+    torch.save(payload, checkpoint_path)
 
 
 def load_checkpoint(
@@ -46,6 +48,7 @@ def load_checkpoint(
     model,
     optimizer=None,
     map_location="cpu",
+    scheduler=None,
 ):
     """Load model + optimizer + metrics from a checkpoint file.
 
@@ -75,6 +78,9 @@ def load_checkpoint(
         optimizer.load_state_dict(
             checkpoint["optimizer_state_dict"]
         )
+
+    if scheduler is not None and "scheduler_state_dict" in checkpoint:
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
 
     # Backward compat: eski checkpoint'lerde psnr/ssim yoksa 0.0 döndür
     checkpoint.setdefault("psnr", 0.0)
