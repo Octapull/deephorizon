@@ -41,7 +41,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 	if h.GRPCClient == nil {
 		c.JSON(http.StatusOK, gin.H{
 			"models": []gin.H{},
-			"detail": "inference service bağlantısı yok (mock modda çalışılıyor)",
+			"detail": "inference service not connected (mock mode)",
 		})
 		return
 	}
@@ -51,7 +51,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 
 	resp, err := h.GRPCClient.ListModels(ctx)
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service ulaşılamadı: " + err.Error()})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service unreachable: " + err.Error()})
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h *Handler) GetModel(c *gin.Context) {
 	modelID := c.Param("id")
 
 	if h.GRPCClient == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service bağlantısı yok (mock modda çalışılıyor)"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service not connected (mock mode)"})
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *Handler) GetModel(c *gin.Context) {
 
 	resp, err := h.GRPCClient.ListModels(ctx)
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service ulaşılamadı: " + err.Error()})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "inference service unreachable: " + err.Error()})
 		return
 	}
 
@@ -95,5 +95,5 @@ func (h *Handler) GetModel(c *gin.Context) {
 			return
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "model bulunamadı", "id": modelID})
+	c.JSON(http.StatusNotFound, gin.H{"error": "model not found", "id": modelID})
 }

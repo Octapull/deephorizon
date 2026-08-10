@@ -57,7 +57,7 @@ func New(address string) (*Client, error) {
 		)
 		if err != nil {
 			c.Close()
-			return nil, fmt.Errorf("gRPC bağlantısı kurulamadı: %w", err)
+			return nil, fmt.Errorf("failed to establish gRPC connection: %w", err)
 		}
 		c.conns = append(c.conns, conn)
 		c.services = append(c.services, pb.NewInferenceServiceClient(conn))

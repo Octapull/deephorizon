@@ -9,6 +9,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -57,7 +58,7 @@ func (h *Handler) Enhance(c *gin.Context) {
 
 	file, err := c.FormFile("image")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "image dosyası eksik"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing image file"})
 		return
 	}
 
@@ -114,15 +115,16 @@ func (h *Handler) runEnhanceJob(jobID string, req *pb.EnhanceRequest) {
 
 	job, err := h.Jobs.Get(ctx, jobID)
 	if err != nil {
+		log.Printf("enhance job %s: failed to read from job store, could not transition to running: %v", jobID, err)
 		return
 	}
 	job.Status = jobstore.StatusRunning
-	_ = h.Jobs.Update(ctx, job)
+	h.updateJob(ctx, job)
 
 	if h.GRPCClient == nil {
 		job.Status = jobstore.StatusFailed
-		job.Error = "inference service bağlantısı yok (mock modda çalışılıyor)"
-		_ = h.Jobs.Update(ctx, job)
+		job.Error = "inference service not connected (mock mode)"
+		h.updateJob(ctx, job)
 		metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		return
 	}
@@ -131,13 +133,13 @@ func (h *Handler) runEnhanceJob(jobID string, req *pb.EnhanceRequest) {
 	if err != nil {
 		job.Status = jobstore.StatusFailed
 		job.Error = err.Error()
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 		metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		return
 	}
 
 	applyEnhanceResponse(job, resp)
-	_ = h.Jobs.Update(ctx, job)
+	h.updateJob(ctx, job)
 	metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 }
 
@@ -193,11 +195,11 @@ func (h *Handler) EnhanceBatch(c *gin.Context) {
 
 	files := form.File["images"]
 	if len(files) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "en az 1 görüntü gerekli"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least 1 image is required"})
 		return
 	}
 	if len(files) > maxBatchImages {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "en fazla 10 görüntü gönderilebilir"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at most 10 images may be submitted"})
 		return
 	}
 
@@ -262,14 +264,14 @@ func (h *Handler) runEnhanceBatchJob(jobs []*jobstore.Job, req *pb.EnhanceBatchR
 
 	for _, job := range jobs {
 		job.Status = jobstore.StatusRunning
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 	}
 
 	if h.GRPCClient == nil {
 		for _, job := range jobs {
 			job.Status = jobstore.StatusFailed
-			job.Error = "inference service bağlantısı yok (mock modda çalışılıyor)"
-			_ = h.Jobs.Update(ctx, job)
+			job.Error = "inference service not connected (mock mode)"
+			h.updateJob(ctx, job)
 			metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		}
 		return
@@ -280,7 +282,7 @@ func (h *Handler) runEnhanceBatchJob(jobs []*jobstore.Job, req *pb.EnhanceBatchR
 		for _, job := range jobs {
 			job.Status = jobstore.StatusFailed
 			job.Error = err.Error()
-			_ = h.Jobs.Update(ctx, job)
+			h.updateJob(ctx, job)
 			metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 		}
 		return
@@ -290,11 +292,11 @@ func (h *Handler) runEnhanceBatchJob(jobs []*jobstore.Job, req *pb.EnhanceBatchR
 	for i, job := range jobs {
 		if i >= len(responses) {
 			job.Status = jobstore.StatusFailed
-			job.Error = "inference service yanıtı eksik"
+			job.Error = "inference service response is missing"
 		} else {
 			applyEnhanceResponse(job, responses[i])
 		}
-		_ = h.Jobs.Update(ctx, job)
+		h.updateJob(ctx, job)
 		metrics.EnhanceJobsTotal.WithLabelValues(string(job.Status)).Inc()
 	}
 }
@@ -314,7 +316,7 @@ func (h *Handler) GetJob(c *gin.Context) {
 	job, err := h.Jobs.Get(c.Request.Context(), jobID)
 	if err != nil {
 		if errors.Is(err, jobstore.ErrNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "job bulunamadı"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -350,7 +352,7 @@ func respondBindError(c *gin.Context, err error) {
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
 		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
-			"error": "yüklenen dosya(lar) izin verilen boyutu aşıyor",
+			"error": "uploaded file(s) exceed the allowed size",
 		})
 		return
 	}
@@ -364,13 +366,13 @@ func respondBindError(c *gin.Context, err error) {
 func readImageFile(fh *multipart.FileHeader) (data []byte, mimeType string, width, height uint32, err error) {
 	src, err := fh.Open()
 	if err != nil {
-		return nil, "", 0, 0, errors.New("dosya okunamadı")
+		return nil, "", 0, 0, errors.New("failed to read file")
 	}
 	defer src.Close()
 
 	data, err = io.ReadAll(src)
 	if err != nil {
-		return nil, "", 0, 0, errors.New("dosya okunamadı")
+		return nil, "", 0, 0, errors.New("failed to read file")
 	}
 
 	mimeType = http.DetectContentType(data)
