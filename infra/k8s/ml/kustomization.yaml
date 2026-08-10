@@ -5,3 +5,4 @@ resources:
   - namespace.yaml
   - postgres.yaml
   - mlflow.yaml
+  - pvcs.yaml
