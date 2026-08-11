@@ -65,7 +65,13 @@ spec:
           volumeMounts:
             - name: outputs
               mountPath: /app/runs
+            - name: dshm
+              mountPath: /dev/shm
       volumes:
         - name: outputs
           persistentVolumeClaim:
             claimName: training-outputs-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
