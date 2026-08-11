@@ -1,0 +1,24 @@
+# Egitim kosularinin cikti diski: checkpoint'ler, Hydra outputs, ornek PNG'ler.
+# Job'lar /app/runs altina baglar (bkz. docs/runbooks/training-job.example.yaml).
+#
+# MLflow'a loglanan artifact'lar MinIO'da yasar; buradaki kopya kosu suresince
+# yazilan ara ciktilar icindir. Yine de silinmesi bir egitim kosusunun tum ara
+# durumunu goturur — bu yuzden Argo CD'nin prune'una kapali.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: training-outputs-pvc
+  labels:
+    app: ml-training
+  annotations:
+    # Manifest repodan kaldirilsa bile PVC silinmesin. PVC'nin kendisi de
+    # degistirilemez alanlar tasir (storage, accessModes); spec'i degistirmek
+    # gerekirse yeni bir PVC acilir, bu duzenlenmez.
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: microk8s-hostpath

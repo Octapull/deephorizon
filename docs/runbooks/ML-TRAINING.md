@@ -70,13 +70,22 @@ kubectl -n deephorizon-ml run img-test --rm -it --restart=Never \
 Eğitim kodu veriyi MinIO'dan `boto3` ile çeker ve üç env bekler:
 `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`.
 
-`ml-team` kullanıcısı kullanılır — `raw` + `datasets` bucket'larında yalnızca
-okuma yetkisi var (bkz. `docs/DATA.md`). Root credential **kullanılmaz**.
+Secret adı **`minio-ml`**, anahtarlar **`access_key`** / **`secret_key`**
+(alt çizgi). Job manifest'leri bu isimlendirmeyi bekliyor.
+
+Kullanıcı: **`ml-trainer`** — `raw` + `datasets` bucket'larında yalnızca okuma
+yetkisi olan, yalnızca eğitim için açılmış hesap (`ml-read` policy'si,
+bkz. `docs/DATA.md`). Root credential **kullanılmaz**.
+
+> **Neden `ml-team` değil:** `ml-team` insanların da `mc`/`boto3` ile kullandığı
+> bir hesap. Parolası döndüğü gün eğitim Job'ları sessizce kırılır ve kimse
+> sebebini bu değişiklikle ilişkilendiremez. Servis kimliği insan kimliğinden
+> ayrı tutulur; böylece ikisi bağımsız rotasyona girer.
 
 ```bash
-kubectl create secret generic minio-ml-credentials -n deephorizon-ml \
-  --from-literal=access-key='ml-team' \
-  --from-literal=secret-key='<ml-team-parolasi>' \
+kubectl create secret generic minio-ml -n deephorizon-ml \
+  --from-literal=access_key='ml-trainer' \
+  --from-literal=secret_key='<ml-trainer-parolasi>' \
   --dry-run=client -o yaml \
   | kubeseal -n deephorizon-ml -o yaml \
   | kubectl apply -f -
@@ -86,12 +95,42 @@ SealedSecret YAML'ı **Git'e girmez** (proje kuralı, `infra/k8s/secrets/`
 klasörleri boş). Şifreleme namespace adına scope'ludur — `-n deephorizon-ml`
 şart, başka namespace'te çözülmez.
 
-Doğrulama:
+Doğrulama — Secret'ın varlığı ve içindeki kullanıcı:
 ```bash
-kubectl -n deephorizon-ml get secret minio-ml-credentials
+kubectl -n deephorizon-ml get secret minio-ml
+kubectl -n deephorizon-ml get secret minio-ml -o jsonpath='{.data.access_key}' | base64 -d; echo
 ```
 
-### A3. Erişim (kişi eklendiğinde)
+Credential'ın kendisini MinIO'ya karşı doğrulamak için üçlü test
+(`docs/DEVOPS.md` Hata #8'in dersi — okuma çalışmalı, yazma ve kapsam dışı
+reddedilmeli):
+```bash
+sudo -u deephorizon mc alias set mltest http://10.10.1.132:30900 ml-trainer '<parola>'
+sudo -u deephorizon mc ls   mltest/datasets/training-512/v1/   # calismali
+sudo -u deephorizon mc cp   /etc/hostname mltest/datasets/x    # reddedilmeli
+sudo -u deephorizon mc ls   mltest/mlflow/                     # reddedilmeli
+sudo -u deephorizon mc alias rm mltest
+```
+
+### A3. Çıktı diski
+
+Eğitim Job'ları `/app/runs` altına `training-outputs-pvc` bağlar (checkpoint'ler,
+Hydra çıktıları, örnek PNG'ler). PVC GitOps'ta:
+`infra/k8s/ml-training/pvcs.yaml` → `apps/ml-training.yaml` Application'ı.
+
+Elle bir şey yapmaya gerek yok; Argo CD oluşturur. `Prune=false` anotasyonu
+taşır — manifest repodan kalksa bile PVC silinmez, çünkü silinmesi süren bir
+koşunun tüm ara durumunu götürür.
+
+> **Egitim Job'ları GitOps'a girmez.** Her koşu ad-hoc'tur, kendi adı ve
+> hyperparametreleriyle elle uygulanır. Job'ları Argo CD'ye verirsen biten
+> koşuları yeniden oluşturur ya da süren bir koşuyu prune eder.
+
+```bash
+kubectl -n deephorizon-ml get pvc training-outputs-pvc
+```
+
+### A4. Erişim (kişi eklendiğinde)
 
 Kişiye sunucuda yetkisiz bir Unix kullanıcısı + SSH key açılır ve
 `~/.kube/config` olarak `ml-trainer` ServiceAccount token'ı kurulur. Bu SA
@@ -166,7 +205,7 @@ ve model MLflow'da kalır — pod'un silinmesi sonuçları kaybettirmez.
 |:---|:---|:---|
 | Pod `Pending`, uzun süre başlamıyor | GPU meşgul — sunucuda **tek L40S** var, başka bir Job onu tutuyor | `kubectl describe pod <ad>` → `Insufficient nvidia.com/gpu`. Diğer koşunun bitmesini bekle ya da sahibiyle konuş |
 | `ImagePullBackOff` | Etiket yanlış ya da imaj push'lanmamış | Manifest'teki etiketi DevOps'un push'ladığıyla karşılaştır |
-| `CreateContainerConfigError` | `minio-ml-credentials` Secret'ı yok | DevOps → A2 |
+| `CreateContainerConfigError` | `minio-ml` Secret'ı yok ya da anahtar adları tutmuyor (`access_key`/`secret_key`) | DevOps → A2 |
 | `ModuleNotFoundError` | İmaj eski, yeni bağımlılık eklenmiş | DevOps yeni etiketle build+push eder |
 | `StartError` + `exec: "training.epochs=1": executable file not found` | Manifest'te `command` yazılmış, ENTRYPOINT ezilmiş | Manifest'ten `command` satırını sil; `args` tek başına yeterli |
 | `No module named services.ml.training.train` | İmaj yanlış daldan build edilmiş (`main`'in `services/ml`'i girmiş) | DevOps → A1'deki checkout doğrulaması |
