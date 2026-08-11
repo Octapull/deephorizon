@@ -1,0 +1,26 @@
+# ML egitim is yuklerinin KALICI kaynaklari (su an yalnizca cikti PVC'si).
+#
+# Egitim Job'larinin kendisi buraya GIRMEZ: her kosu ad-hoc'tur, kendi adi ve
+# hyperparametreleriyle elle uygulanir (bkz. docs/runbooks/ML-TRAINING.md).
+# Job'lari GitOps'a koymak, Argo CD'nin biten kosulari yeniden olusturmasina
+# ya da suren bir kosuyu prune etmesine yol acar.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ml-training
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/ml-training
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deephorizon-ml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

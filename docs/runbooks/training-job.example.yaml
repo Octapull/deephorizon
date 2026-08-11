@@ -42,13 +42,13 @@ spec:
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: minio-ml-credentials
-                  key: access-key
+                  name: minio-ml
+                  key: access_key
             - name: MINIO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: minio-ml-credentials
-                  key: secret-key
+                  name: minio-ml
+                  key: secret_key
           resources:
             requests:
               nvidia.com/gpu: 1

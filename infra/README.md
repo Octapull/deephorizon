@@ -12,6 +12,7 @@ All deployment artifacts: Kubernetes manifests, Dockerfiles, and a local dev com
 | `k8s/minio/` | Data squad | MinIO StatefulSet and Services |
 | `k8s/mlflow/` | ML squad | MLflow Deployment and Service |
 | `k8s/postgresql/` | Data / ML squads | Airflow and MLflow PostgreSQL instances |
+| `k8s/ml-training/` | ML / DevOps | Persistent resources for training workloads (output PVC). Training Jobs themselves stay out of GitOps — see [`docs/runbooks/ML-TRAINING.md`](../docs/runbooks/ML-TRAINING.md) |
 | `k8s/redis/` | Platform squad | Redis Deployment and Service |
 | `k8s/monitor/` | Platform squad | Prometheus, Grafana, Argo CD |
 | `k8s/secrets/` | Squad leads | Empty service placeholders; Secret YAML files stay outside Git |
