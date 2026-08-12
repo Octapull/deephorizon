@@ -1,0 +1,23 @@
+# DeepHorizon PriorityClass definitions.
+# Faz 3 Adım 28: Inference pod'ları training job'larından önce schedule edilir.
+#
+# Deploy:
+#   kubectl apply -f infra/k8s/ml/priority-class.yaml
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+  description: "Inference serving pods — GPU node'larda training'den önce schedule edilir."
+  globalDefault: false
+value: 1000000
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: training-priority
+  description: "Training job'ları — inference yokken GPU node'ları kullanır."
+  globalDefault: false
+value: 100000
