@@ -31,6 +31,11 @@ training:
   # Ornek: /app/checkpoints/epoch_42.pt
   resume_from: null
 
+  # ESRGAN warm-start: Pix2Pix generator checkpoint'inden transfer learning.
+  # Sadece scale=1 modunda anlamlıdır (mimari farklı).
+  # Ornek: /app/checkpoints/pix2pix_best.pt
+  warm_start_from: null
+
   # Mixed precision (Faz 1 Adım 3'te kullanılacak)
   amp: false                       # true → torch.amp.autocast + GradScaler
   amp_dtype: bfloat16              # float16 | bfloat16 (L40S BF16 destekliyor)

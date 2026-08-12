@@ -27,6 +27,7 @@ Note:
     directory. Generate them with:
         cd proto && buf generate
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,6 +42,10 @@ import numpy as np
 from services.ml.inference_server.image_utils import (
     decode_image_to_tensor,
     encode_tensor_to_image,
+)
+from services.ml.inference_server.metrics import (
+    record_batch_size,
+    record_inference,
 )
 from services.ml.inference_server.model_registry import ModelRegistry, ModelSpec
 
@@ -66,12 +71,18 @@ def _import_proto_stubs():
             inference_pb2,
             inference_pb2_grpc,
         )
+
         return inference_pb2, inference_pb2_grpc
     except ImportError as exc:
         raise ImportError(
             "Proto stubs not found. Generate them with:\n"
             "  cd proto && buf generate\n"
-            "Or install the package: pip install -e ."
+            "Or, with grpc_tools.protoc:\n"
+            "  python -m grpc_tools.protoc --proto_path=proto \\\n"
+            "    --python_out=services/ml/inference_server/pb \\\n"
+            "    --grpc_python_out=services/ml/inference_server/pb \\\n"
+            "    proto/deephorizon/v1/common.proto \\\n"
+            "    proto/deephorizon/v1/inference.proto"
         ) from exc
 
 
@@ -97,16 +108,32 @@ class InferenceServicer:
         """Enhance a single image."""
         inference_pb2, _ = _import_proto_stubs()
 
+        # Resolve model_id early for metrics labeling
+        model_id_for_metrics = request.model_id or "unknown"
+        start_time = time.perf_counter()
+
         try:
             # Validate request
             if not request.image.data:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
                 context.set_details("image.data is empty")
+                record_inference(
+                    model_id=model_id_for_metrics,
+                    status="invalid_argument",
+                    latency_seconds=time.perf_counter() - start_time,
+                )
                 return inference_pb2.EnhanceResponse()
 
             model_id = request.model_id or self._default_model_id(context)
             if model_id is None:
+                record_inference(
+                    model_id=model_id_for_metrics,
+                    status="not_found",
+                    latency_seconds=time.perf_counter() - start_time,
+                )
                 return inference_pb2.EnhanceResponse()
+
+            model_id_for_metrics = model_id
 
             # Decode input
             input_tensor = decode_image_to_tensor(
@@ -117,12 +144,12 @@ class InferenceServicer:
             )
 
             # Run inference
-            start_time = time.perf_counter()
+            inference_start = time.perf_counter()
             output_array = self._registry.run_inference(
                 model_id=model_id,
                 input_tensor=input_tensor.numpy(),
             )
-            inference_time_ms = int((time.perf_counter() - start_time) * 1000)
+            inference_time_ms = int((time.perf_counter() - inference_start) * 1000)
 
             # Encode output
             output_format = request.output_format or "png"
@@ -130,6 +157,13 @@ class InferenceServicer:
             output_bytes, output_mime, out_w, out_h = encode_tensor_to_image(
                 output_tensor,
                 output_format=output_format,
+            )
+
+            # Record success metrics
+            record_inference(
+                model_id=model_id,
+                status="success",
+                latency_seconds=time.perf_counter() - start_time,
             )
 
             # Build response
@@ -153,11 +187,21 @@ class InferenceServicer:
         except KeyError as exc:
             context.set_code(grpc.StatusCode.NOT_FOUND)
             context.set_details(str(exc))
+            record_inference(
+                model_id=model_id_for_metrics,
+                status="not_found",
+                latency_seconds=time.perf_counter() - start_time,
+            )
             return inference_pb2.EnhanceResponse()
         except Exception as exc:
             logger.exception("Enhance failed")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Enhance failed: {exc}")
+            record_inference(
+                model_id=model_id_for_metrics,
+                status="error",
+                latency_seconds=time.perf_counter() - start_time,
+            )
             return inference_pb2.EnhanceResponse()
 
     # ------------------------------------------------------------------
@@ -166,6 +210,14 @@ class InferenceServicer:
     def EnhanceBatch(self, request, context):  # noqa: N802
         """Enhance a batch of images sequentially."""
         inference_pb2, _ = _import_proto_stubs()
+
+        # Record batch size for the first model_id in the batch
+        batch_size = len(request.requests)
+        if batch_size > 0 and request.requests[0].model_id:
+            record_batch_size(
+                model_id=request.requests[0].model_id,
+                batch_size=batch_size,
+            )
 
         responses = []
         for req in request.requests:
@@ -261,9 +313,11 @@ def build_registry_from_args(args: argparse.Namespace) -> ModelRegistry:
             architecture=args.architecture,
             version=args.version,
             onnx_path=Path(args.onnx_path),
-            metadata_path=Path(args.onnx_path + ".json")
-            if Path(args.onnx_path + ".json").exists()
-            else None,
+            metadata_path=(
+                Path(args.onnx_path + ".json")
+                if Path(args.onnx_path + ".json").exists()
+                else None
+            ),
         )
         registry.register(spec)
 
@@ -360,6 +414,17 @@ def main() -> None:
         help="Thread pool size (default: 4)",
     )
     parser.add_argument(
+        "--metrics-port",
+        type=int,
+        default=8000,
+        help="Prometheus metrics HTTP port (default: 8000)",
+    )
+    parser.add_argument(
+        "--disable-metrics",
+        action="store_true",
+        help="Disable Prometheus metrics server",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -371,6 +436,12 @@ def main() -> None:
         level=getattr(logging, args.log_level),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+
+    # Prometheus metrics server başlat
+    if not args.disable_metrics:
+        from services.ml.inference_server.metrics import start_metrics_server
+
+        start_metrics_server(port=args.metrics_port)
 
     registry = build_registry_from_args(args)
     if not registry.list_specs():

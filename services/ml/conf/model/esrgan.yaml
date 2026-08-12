@@ -1,0 +1,23 @@
+# @package _global_
+# ESRGAN model architecture
+# Faz 3 Adım 20-22: Generator (23 RRDB) + RaGAN Discriminator
+
+model:
+  name: esrgan
+  in_channels: 1
+  out_channels: 1
+
+  # Generator (ESRGANGenerator)
+  generator:
+    num_rrdb: 23                  # ESRGAN makalesi: 23 RRDB bloğu
+    features: 64                  # Feature kanal sayısı
+    growth_rate: 32               # RRDB içindeki growth rate
+    scale: 1                      # 1 = Pix2Pix uyumlu, 2/4 = super-resolution
+    use_tanh: true                # Tanh output → [-1, 1]
+
+  # Discriminator (RaDiscriminator)
+  discriminator:
+    in_channels: 2                # condition (1) + target (1)
+    base_channels: 64             # C64
+    max_channels: 512             # C512
+    n_layers: 5                   # ESRGAN: 5 katman (Pix2Pix'in 3'ünden fazla)
