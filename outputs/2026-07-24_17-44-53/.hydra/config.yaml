@@ -1,0 +1,58 @@
+model:
+  name: unet
+  in_channels: 1
+  out_channels: 1
+  features:
+  - 64
+  - 128
+  - 256
+  - 512
+training:
+  epochs: 2
+  batch_size: 16
+  learning_rate: 0.0001
+  val_ratio: 0.2
+  optimizer:
+    name: adam
+    betas:
+    - 0.9
+    - 0.999
+    weight_decay: 0.0
+  scheduler:
+    name: reduce_on_plateau
+    factor: 0.5
+    patience: 5
+    min_lr: 1.0e-06
+  amp: false
+  amp_dtype: bfloat16
+  grad_accum_steps: 1
+  save_every_epoch: true
+  keep_last_n: 3
+data:
+  root_dir: data/training
+  use_minio: false
+  bucket_name: datasets
+  minio_prefix: datasets/training-512/v1
+  num_workers: 4
+  pin_memory: true
+  drop_last: true
+  augment: false
+  crop_size: 256
+  split: medium
+loss:
+  name: l1
+  weights:
+    pixel: 1.0
+    perceptual: 0.0
+    adversarial: 0.0
+    physics: 0.0
+paths:
+  output_dir: checkpoints
+  root_dir: data/training
+seed: 42
+device: auto
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  experiment_name: unet-baseline
+  run_name: null
+  log_model: false

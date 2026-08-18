@@ -1,0 +1,1151 @@
+{
+  "all_passed": true,
+  "total_checks": 160,
+  "passed": 156,
+  "failed": 0,
+  "warned": 4,
+  "results": [
+    {
+      "name": "exists: services/ml/models/pix2pix/__init__.py",
+      "status": "pass",
+      "message": "✓ Pix2Pix package init",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/models/pix2pix/__init__.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/models/pix2pix/__init__.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/models/pix2pix/__init__.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/models/pix2pix/__init__.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/models/pix2pix/generator.py",
+      "status": "pass",
+      "message": "✓ Pix2PixGenerator (U-Net wrapper)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/models/pix2pix/generator.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/models/pix2pix/generator.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "Pix2PixGenerator"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/models/pix2pix/generator.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/models/pix2pix/generator.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/models/pix2pix/discriminator.py",
+      "status": "pass",
+      "message": "✓ PatchDiscriminator (70x70 PatchGAN)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/models/pix2pix/discriminator.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/models/pix2pix/discriminator.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "PatchDiscriminator"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/models/pix2pix/discriminator.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/models/pix2pix/discriminator.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/tests/test_pix2pix.py",
+      "status": "pass",
+      "message": "✓ Pix2Pix tests",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/tests/test_pix2pix.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/tests/test_pix2pix.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/tests/test_pix2pix.py",
+      "status": "pass",
+      "message": "✓ 11 tests (>= 10)",
+      "details": {
+        "count": 11,
+        "tests": [
+          "test_generator_output_shape_default",
+          "test_generator_output_shape_custom_channels",
+          "test_generator_tanh_output_range",
+          "test_generator_no_tanh_unbounded",
+          "test_generator_invalid_dropout",
+          "test_discriminator_output_shape",
+          "test_discriminator_sigmoid_range",
+          "test_discriminator_spatial_mismatch_raises",
+          "test_discriminator_invalid_n_layers",
+          "test_generator_param_count_reasonable",
+          "test_discriminator_param_count_reasonable"
+        ]
+      }
+    },
+    {
+      "name": "yaml: services/ml/tests/test_pix2pix.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/losses/perceptual.py",
+      "status": "pass",
+      "message": "✓ PerceptualLoss (VGG19)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/losses/perceptual.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/losses/perceptual.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "PerceptualLoss"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/losses/perceptual.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/losses/perceptual.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/losses/gan.py",
+      "status": "pass",
+      "message": "✓ GeneratorAdversarialLoss + DiscriminatorAdversarialLoss",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/losses/gan.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/losses/gan.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "DiscriminatorAdversarialLoss",
+          "GeneratorAdversarialLoss"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/losses/gan.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/losses/gan.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/losses/physics.py",
+      "status": "pass",
+      "message": "✓ PhysicsLoss (flux + ring + asymmetry)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/losses/physics.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/losses/physics.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "PhysicsLoss"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/losses/physics.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/losses/physics.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/losses/combined.py",
+      "status": "pass",
+      "message": "✓ CombinedLoss (weighted sum)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/losses/combined.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/losses/combined.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "CombinedLoss"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/losses/combined.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/losses/combined.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/losses/__init__.py",
+      "status": "pass",
+      "message": "✓ Losses package init",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/losses/__init__.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/losses/__init__.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/losses/__init__.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/losses/__init__.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/losses/loss.py",
+      "status": "pass",
+      "message": "✓ Loss factory (updated)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/losses/loss.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/losses/loss.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/losses/loss.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/losses/loss.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/conf/loss/default.yaml",
+      "status": "pass",
+      "message": "✓ Loss config (updated)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/conf/loss/default.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/conf/loss/default.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/conf/loss/default.yaml",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/conf/loss/default.yaml",
+      "status": "warn",
+      "message": "⚠ PyYAML not installed — skipping validation",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/tests/test_gan_loss.py",
+      "status": "pass",
+      "message": "✓ GAN loss tests",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/tests/test_gan_loss.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/tests/test_gan_loss.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/tests/test_gan_loss.py",
+      "status": "pass",
+      "message": "✓ 10 tests (>= 8)",
+      "details": {
+        "count": 10,
+        "tests": [
+          "test_generator_vanilla_returns_scalar",
+          "test_generator_lsgan_returns_scalar",
+          "test_generator_lsgan_zero_when_perfect",
+          "test_generator_invalid_mode",
+          "test_discriminator_vanilla_returns_scalar",
+          "test_discriminator_lsgan_returns_scalar",
+          "test_discriminator_lsgan_zero_when_perfect",
+          "test_discriminator_invalid_mode",
+          "test_factory_gan_g",
+          "test_factory_gan_d"
+        ]
+      }
+    },
+    {
+      "name": "yaml: services/ml/tests/test_gan_loss.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/tests/test_combined.py",
+      "status": "pass",
+      "message": "✓ Combined loss tests",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/tests/test_combined.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/tests/test_combined.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/tests/test_combined.py",
+      "status": "pass",
+      "message": "✓ 11 tests (>= 8)",
+      "details": {
+        "count": 11,
+        "tests": [
+          "test_combined_pixel_only",
+          "test_combined_pixel_weight_scaling",
+          "test_combined_with_adversarial",
+          "test_combined_adversarial_requires_disc_output",
+          "test_combined_with_physics",
+          "test_combined_full_mode",
+          "test_combined_invalid_pixel_weight",
+          "test_combined_invalid_pixel_loss",
+          "test_combined_pixel_loss_types",
+          "test_factory_combined",
+          "test_factory_physics"
+        ]
+      }
+    },
+    {
+      "name": "yaml: services/ml/tests/test_combined.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/training/gan_train.py",
+      "status": "pass",
+      "message": "✓ GAN training loop",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/training/gan_train.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/training/gan_train.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [],
+        "functions": [
+          "_build_generator",
+          "train_gan",
+          "_build_discriminator"
+        ]
+      }
+    },
+    {
+      "name": "tests: services/ml/training/gan_train.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/training/gan_train.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/conf/training/default.yaml",
+      "status": "pass",
+      "message": "✓ Training config (updated)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/conf/training/default.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/conf/training/default.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/conf/training/default.yaml",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/conf/training/default.yaml",
+      "status": "warn",
+      "message": "⚠ PyYAML not installed — skipping validation",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/conf/model/pix2pix.yaml",
+      "status": "pass",
+      "message": "✓ Pix2Pix model config",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/conf/model/pix2pix.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/conf/model/pix2pix.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/conf/model/pix2pix.yaml",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/conf/model/pix2pix.yaml",
+      "status": "warn",
+      "message": "⚠ PyYAML not installed — skipping validation",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/tests/test_gan_train.py",
+      "status": "pass",
+      "message": "✓ GAN training tests",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/tests/test_gan_train.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/tests/test_gan_train.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/tests/test_gan_train.py",
+      "status": "pass",
+      "message": "✓ 15 tests (>= 10)",
+      "details": {
+        "count": 15,
+        "tests": [
+          "test_build_generator_default",
+          "test_build_generator_custom_channels",
+          "test_build_generator_no_tanh",
+          "test_build_discriminator_default",
+          "test_build_discriminator_no_sigmoid",
+          "test_build_losses_default",
+          "test_build_losses_with_physics",
+          "test_build_losses_vanilla_mode",
+          "test_build_optimizers_lr_factor",
+          "test_build_optimizers_adam",
+          "test_train_discriminator_step_returns_float",
+          "test_train_discriminator_step_updates_params",
+          "test_train_generator_step_returns_components",
+          "test_train_generator_step_updates_params",
+          "test_train_generator_step_with_physics"
+        ]
+      }
+    },
+    {
+      "name": "yaml: services/ml/tests/test_gan_train.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/export/onnx_export.py",
+      "status": "pass",
+      "message": "✓ ONNX export module",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/export/onnx_export.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/export/onnx_export.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "ExportMetadata"
+        ],
+        "functions": [
+          "export_to_onnx",
+          "export_checkpoint_to_onnx"
+        ]
+      }
+    },
+    {
+      "name": "tests: services/ml/export/onnx_export.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/export/onnx_export.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/export/__init__.py",
+      "status": "pass",
+      "message": "✓ Export package init",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/export/__init__.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/export/__init__.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/export/__init__.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/export/__init__.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/conf/export/default.yaml",
+      "status": "pass",
+      "message": "✓ Export config",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/conf/export/default.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/conf/export/default.yaml",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/conf/export/default.yaml",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/conf/export/default.yaml",
+      "status": "warn",
+      "message": "⚠ PyYAML not installed — skipping validation",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/tests/test_onnx_export.py",
+      "status": "pass",
+      "message": "✓ ONNX export tests",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/tests/test_onnx_export.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/tests/test_onnx_export.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/tests/test_onnx_export.py",
+      "status": "pass",
+      "message": "✓ 14 tests (>= 10)",
+      "details": {
+        "count": 14,
+        "tests": [
+          "test_load_unet_from_checkpoint",
+          "test_load_pix2pix_from_checkpoint",
+          "test_load_unknown_model_type",
+          "test_load_missing_checkpoint",
+          "test_export_unet_to_onnx",
+          "test_export_pix2pix_to_onnx",
+          "test_export_creates_parent_dir",
+          "test_export_custom_opset",
+          "test_export_no_dynamic_axes",
+          "test_save_and_load_metadata",
+          "test_metadata_json_format",
+          "test_export_checkpoint_to_onnx_unet",
+          "test_export_checkpoint_to_onnx_pix2pix",
+          "test_export_checkpoint_missing_file"
+        ]
+      }
+    },
+    {
+      "name": "yaml: services/ml/tests/test_onnx_export.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/inference_server/server.py",
+      "status": "pass",
+      "message": "✓ gRPC inference server",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/inference_server/server.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/inference_server/server.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "InferenceServicer"
+        ],
+        "functions": [
+          "Enhance",
+          "EnhanceBatch",
+          "Health",
+          "ListModels"
+        ]
+      }
+    },
+    {
+      "name": "tests: services/ml/inference_server/server.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/inference_server/server.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/inference_server/model_registry.py",
+      "status": "pass",
+      "message": "✓ Model registry",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/inference_server/model_registry.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/inference_server/model_registry.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [
+          "ModelSpec",
+          "ModelRegistry"
+        ],
+        "functions": []
+      }
+    },
+    {
+      "name": "tests: services/ml/inference_server/model_registry.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/inference_server/model_registry.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/inference_server/image_utils.py",
+      "status": "pass",
+      "message": "✓ Image encode/decode utilities",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/inference_server/image_utils.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/inference_server/image_utils.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/inference_server/image_utils.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/inference_server/image_utils.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/inference_server/__init__.py",
+      "status": "pass",
+      "message": "✓ Inference server package init",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/inference_server/__init__.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/inference_server/__init__.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/inference_server/__init__.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/ml/inference_server/__init__.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/ml/tests/test_inference_server.py",
+      "status": "pass",
+      "message": "✓ Inference server tests",
+      "details": null
+    },
+    {
+      "name": "syntax: services/ml/tests/test_inference_server.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: services/ml/tests/test_inference_server.py",
+      "status": "pass",
+      "message": "(no AST checks defined)",
+      "details": null
+    },
+    {
+      "name": "tests: services/ml/tests/test_inference_server.py",
+      "status": "pass",
+      "message": "✓ 22 tests (>= 15)",
+      "details": {
+        "count": 22,
+        "tests": [
+          "test_decode_png_grayscale",
+          "test_decode_png_rgb",
+          "test_decode_raw_float32",
+          "test_decode_raw_missing_dims",
+          "test_decode_raw_size_mismatch",
+          "test_decode_unsupported_mime",
+          "test_encode_png_roundtrip",
+          "test_encode_jpeg",
+          "test_encode_raw_float32",
+          "test_encode_unsupported_format",
+          "test_encode_rgb_tensor",
+          "test_registry_register",
+          "test_registry_register_duplicate_raises",
+          "test_registry_register_missing_file",
+          "test_registry_unregister",
+          "test_registry_get_unknown_raises",
+          "test_registry_list_specs",
+          "test_registry_is_loaded_false",
+          "test_build_registry_from_single_onnx",
+          "test_build_registry_from_models_dir",
+          "test_build_registry_default_model_id",
+          "test_build_registry_metadata_sidecar"
+        ]
+      }
+    },
+    {
+      "name": "yaml: services/ml/tests/test_inference_server.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/api/internal/handlers/enhance.go",
+      "status": "pass",
+      "message": "✓ Go enhance handler (gRPC wired)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/api/internal/handlers/enhance.go",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/api/internal/handlers/enhance.go",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/api/internal/handlers/enhance.go",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/api/internal/handlers/enhance.go",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/api/internal/handlers/models.go",
+      "status": "pass",
+      "message": "✓ Go models handler (gRPC wired)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/api/internal/handlers/models.go",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/api/internal/handlers/models.go",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/api/internal/handlers/models.go",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/api/internal/handlers/models.go",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: services/api/internal/handlers/health.go",
+      "status": "pass",
+      "message": "✓ Go health handler (gRPC wired)",
+      "details": null
+    },
+    {
+      "name": "syntax: services/api/internal/handlers/health.go",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: services/api/internal/handlers/health.go",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: services/api/internal/handlers/health.go",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: services/api/internal/handlers/health.go",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: scripts/e2e_integration_test.py",
+      "status": "pass",
+      "message": "✓ E2E integration test",
+      "details": null
+    },
+    {
+      "name": "syntax: scripts/e2e_integration_test.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: scripts/e2e_integration_test.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [],
+        "functions": [
+          "phase_export",
+          "main",
+          "phase_test_enhance"
+        ]
+      }
+    },
+    {
+      "name": "tests: scripts/e2e_integration_test.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: scripts/e2e_integration_test.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: scripts/e2e_test_helpers.py",
+      "status": "pass",
+      "message": "✓ E2E test helpers",
+      "details": null
+    },
+    {
+      "name": "syntax: scripts/e2e_test_helpers.py",
+      "status": "pass",
+      "message": "✓ Valid Python syntax",
+      "details": null
+    },
+    {
+      "name": "ast: scripts/e2e_test_helpers.py",
+      "status": "pass",
+      "message": "✓ All expected classes/functions present",
+      "details": {
+        "classes": [],
+        "functions": [
+          "generate_synthetic_image",
+          "inference_server"
+        ]
+      }
+    },
+    {
+      "name": "tests: scripts/e2e_test_helpers.py",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: scripts/e2e_test_helpers.py",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    },
+    {
+      "name": "exists: scripts/README_E2E.md",
+      "status": "pass",
+      "message": "✓ E2E test documentation",
+      "details": null
+    },
+    {
+      "name": "syntax: scripts/README_E2E.md",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "ast: scripts/README_E2E.md",
+      "status": "pass",
+      "message": "(skipped — not Python)",
+      "details": null
+    },
+    {
+      "name": "tests: scripts/README_E2E.md",
+      "status": "pass",
+      "message": "(no test count requirement)",
+      "details": null
+    },
+    {
+      "name": "yaml: scripts/README_E2E.md",
+      "status": "pass",
+      "message": "(skipped — not YAML)",
+      "details": null
+    }
+  ]
+}

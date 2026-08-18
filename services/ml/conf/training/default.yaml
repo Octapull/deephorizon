@@ -1,0 +1,51 @@
+# @package _global_
+# Training loop hyperparameters
+
+training:
+  epochs: 10
+  batch_size: 16
+  learning_rate: 1.0e-4
+  val_ratio: 0.2
+
+  # Optimizer (Adam)
+  optimizer:
+    name: adam                     # adam | adamw | sgd
+    betas: [0.9, 0.999]
+    weight_decay: 0.0
+
+  # LR scheduler (ReduceLROnPlateau)
+  scheduler:
+    name: reduce_on_plateau        # reduce_on_plateau | cosine | none
+    factor: 0.5
+    patience: 5
+    min_lr: 1.0e-6
+
+  # Validation plato yaptiginda gereksiz GPU suresini kes.
+  early_stopping:
+    enabled: true
+    min_epochs: 40
+    patience: 15
+    min_delta: 1.0e-5
+
+  # Bir onceki epoch checkpoint'inden devam etmek icin uzak pod yolu.
+  # Ornek: /app/checkpoints/epoch_42.pt
+  resume_from: null
+
+  # ESRGAN warm-start: Pix2Pix generator checkpoint'inden transfer learning.
+  # Sadece scale=1 modunda anlamlıdır (mimari farklı).
+  # Ornek: /app/checkpoints/pix2pix_best.pt
+  warm_start_from: null
+
+  # Mixed precision (Faz 1 Adım 3'te kullanılacak)
+  amp: false                       # true → torch.amp.autocast + GradScaler
+  amp_dtype: bfloat16              # float16 | bfloat16 (L40S BF16 destekliyor)
+
+  # Gradient accumulation (Faz 1 Adım 4'te kullanılacak)
+  grad_accum_steps: 1              # 1 = no accumulation, 4 = effective batch ×4
+
+  # Checkpointing
+  save_every_epoch: true
+  keep_last_n: 3                   # sadece son N epoch checkpoint'ini tut
+
+  # GAN-specific (Faz 2 Adım 13)
+  discriminator_lr_factor: 0.5     # D lr = G lr × factor (Pix2Pix standart)

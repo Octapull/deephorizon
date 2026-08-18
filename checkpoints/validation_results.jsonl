@@ -1,0 +1,3 @@
+{"epoch": 1, "train_loss": 0.15800195652991533, "val_loss": 0.12108765045801799, "psnr": 18.33381603676955, "ssim": 0.007421073503792286, "lpips": 0.0, "flux_error": 0.0, "ring_diameter_error": 0.0, "asymmetry_error": 0.0}
+{"epoch": 1, "train_loss": 0.15800195652991533, "val_loss": 0.12108765045801799, "psnr": 18.33381603676955, "ssim": 0.007421073503792286, "lpips": 0.0, "flux_error": 0.0, "ring_diameter_error": 0.0, "asymmetry_error": 0.0}
+{"epoch": 2, "train_loss": 0.0630839467048645, "val_loss": 0.11707497636477153, "psnr": 18.57325789354591, "ssim": 0.006745732234170039, "lpips": 0.0, "flux_error": 0.0, "ring_diameter_error": 0.0, "asymmetry_error": 0.0}

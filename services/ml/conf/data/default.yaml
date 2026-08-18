@@ -1,0 +1,23 @@
+# @package _global_
+# Data loading configuration
+# MinIO mode (default) → 10K 512×512 pairs from docs/DATA.md bucket layout
+# Local mode → root_dir/clean/*.npy + root_dir/degraded/*.npy
+
+data:
+  root_dir: data/training
+  use_minio: true
+  bucket_name: datasets
+  minio_prefix: training-512/v1
+  # Smoke test icin CLI'dan data.max_samples=64 verilebilir.
+  # null = tum veri seti.
+  max_samples: null
+
+  # DataLoader
+  num_workers: 4
+  pin_memory: true
+  drop_last: true
+
+  # Augmentation (Faz 1 Adım 8 — train set'e flip + 90° rot + random crop)
+  augment: true
+  crop_size: 256                   # random crop from 512×512 (augment=true ise)
+  split: null                      # light/medium/heavy/extreme (null = root_dir/clean + root_dir/degraded)

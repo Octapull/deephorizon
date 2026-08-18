@@ -1,0 +1,14 @@
+# @package _global_
+# U-Net model architecture
+# Mirrors services/ml/models/unet.py defaults (1→64→128→256→512→1024)
+
+model:
+  name: unet
+  in_channels: 1
+  out_channels: 1
+  # Channel widths at each encoder level (length = depth)
+  features:
+    - 64
+    - 128
+    - 256
+    - 512

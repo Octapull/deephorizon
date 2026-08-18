@@ -1,0 +1,22 @@
+# @package _global_
+# Loss function configuration
+# Faz 1 Adım 6: mse | l1 | smooth_l1
+# Faz 2 Adım 12: perceptual, gan_g, gan_d, physics, combined
+
+loss:
+  name: l1                        # U-Net baseline; GAN combined loss'u kendi loop'unda kurar
+  # Pixel loss tipi (combined modunda kullanılır)
+  pixel_loss: l1                  # l1 | mse | smooth_l1
+
+  # Combined loss ağırlıkları
+  weights:
+    pixel: 100.0                  # Pix2Pix standart: λ=100
+    perceptual: 0.0               # VGG perceptual (Faz 2'de aktif)
+    adversarial: 0.0              # GAN generator loss (Faz 2'de aktif)
+    physics: 0.0                  # Flux + ring + asymmetry (Faz 2'de aktif)
+
+  # GAN modu (vanilla BCE veya LSGAN)
+  gan_mode: lsgan                 # vanilla | lsgan
+
+  # Perceptual loss VGG katmanı
+  perceptual_layer: relu2_2       # relu1_2 | relu2_2 | relu3_3 | relu4_3

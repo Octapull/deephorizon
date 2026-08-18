@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: unet-baseline-100ep-20260810
+  namespace: deephorizon-ml
+  labels:
+    app: ml-training
+    model: unet-baseline
+    dataset: training-512-v1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 432000  # 120 hours; full 100-epoch run may exceed 72 hours
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: ml-training
+        model: unet-baseline
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: trainer
+          image: localhost:32000/deephorizon-training:20260810-unet100-v2
+          imagePullPolicy: IfNotPresent
+          args:
+            - "training.epochs=100"
+            - "training.batch_size=8"
+            - "training.amp=true"
+            - "training.amp_dtype=bfloat16"
+            - "training.grad_accum_steps=1"
+            - "training.early_stopping.enabled=true"
+            - "training.early_stopping.min_epochs=40"
+            - "training.early_stopping.patience=15"
+            - "device=cuda"
+            - "loss.name=l1"
+            - "data.use_minio=true"
+            - "data.minio_prefix=training-512/v1"
+            - "paths.output_dir=/app/runs/unet-baseline-100ep-20260810"
+            - "hydra.run.dir=/app/runs/unet-baseline-100ep-20260810/hydra"
+            - "mlflow.run_name=unet-baseline-100ep-20260810"
+          env:
+            - name: MINIO_ENDPOINT
+              value: http://minio.deephorizon-data.svc:9000
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: secret_key
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow.deephorizon-ml.svc:5000
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: outputs
+              mountPath: /app/runs
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: outputs
+          persistentVolumeClaim:
+            claimName: training-outputs-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
