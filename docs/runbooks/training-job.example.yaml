@@ -1,0 +1,72 @@
+# Ornek egitim Job'i — kopyala, adini ve args'ini degistir, uygula.
+#
+#   kubectl apply -f training-job.example.yaml
+#
+# Bu dosya Argo CD tarafindan izlenmez (docs/ hicbir Application'in path'i degil);
+# ad-hoc egitim kosulari GitOps'a girmez, elle uygulanir.
+#
+# Rehber: docs/runbooks/ML-TRAINING.md
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Her kosuya BENZERSIZ ad ver — ayni adla ikinci Job acilamaz.
+  name: unet-baseline-01
+  namespace: deephorizon-ml
+spec:
+  # Egitim cokerse 1 kez daha dener. 0 yaparsan hic denemez.
+  backoffLimit: 1
+  # Biten Job 24 saat sonra kendini siler (pod ve loglar da gider).
+  # Loglari saklamak istiyorsan MLflow'a bak, orada kalici.
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: train
+          # Etiket her build'de degisir — `latest` kullanma.
+          image: localhost:32000/deephorizon-training:2026-08-07
+          # Hyperparametre override'lari (Hydra). Bos birakirsan
+          # services/ml/conf/ altindaki varsayilanlar gecerli olur.
+          #
+          # `command` YAZMA. Imajin ENTRYPOINT'i egitim komutunu tasiyor ve
+          # buradaki args onun sonuna eklenir. `command` yazarsan ENTRYPOINT
+          # ezilir ve Hydra override'lari calismaz.
+          args:
+            - "training.epochs=50"
+            - "training.batch_size=16"
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.deephorizon-ml.svc:5000"
+            - name: MINIO_ENDPOINT
+              value: "http://minio.deephorizon-data.svc:9000"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: secret_key
+          resources:
+            requests:
+              nvidia.com/gpu: 1
+              memory: "32Gi"
+              cpu: "8"
+            limits:
+              # GPU'da requests ve limits AYNI olmak zorunda (Kubernetes kurali).
+              nvidia.com/gpu: 1
+              memory: "48Gi"
+              cpu: "16"
+          volumeMounts:
+            # Hydra cikti klasoru ve DataLoader'in shared memory ihtiyaci.
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        # Varsayilan /dev/shm 64 MB'tir; num_workers>0 olan PyTorch DataLoader
+        # bunu doldurur ve worker'lar "Bus error" ile duser.
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi

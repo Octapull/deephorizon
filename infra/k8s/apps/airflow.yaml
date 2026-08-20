@@ -1,0 +1,27 @@
+# Airflow. Kaynak bir Helm chart degil, repodaki hazir YAML — Argo CD'nin gomulu
+# Helm'i (v3.11.2) Airflow chart >= 1.19.0'i render edemiyor. Gerekce ve yeniden
+# render komutu: infra/k8s/airflow/values.yaml · docs/AIRFLOW.md
+#
+# values.yaml'i degistirmek tek basina yetmez; yeniden render alip
+# manifests/airflow.yaml'i da commit et. Kustomize ayni Application icinde
+# rendered Airflow kaynaklarini ve workspace PVC'yi uygular.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airflow
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Octapull/deephorizon.git
+    targetRevision: main
+    path: infra/k8s/airflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deephorizon-data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

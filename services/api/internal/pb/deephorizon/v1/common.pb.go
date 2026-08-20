@@ -21,8 +21,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Async job lifecycle states. Sync /enhance requests jump straight to
-// COMPLETED; batch requests transition QUEUED -> RUNNING -> COMPLETED.
+// Async job lifecycle states. The Go gateway queues both single and batch
+// /enhance requests immediately (QUEUED), moves them to RUNNING while the
+// inference RPC is in flight, and settles on COMPLETED or FAILED. Poll
+// GET /enhance/{job_id} for the final state.
 type JobStatus int32
 
 const (

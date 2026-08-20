@@ -19,11 +19,15 @@ datasets/                     # eğitim setleri — ML ekibinin ana adresi
     └── degraded/  00000.npy …
 
 mlflow/                       # MLflow artifact store — yalnızca MLflow server yazar, elle dokunulmaz
+
+dvc-cache/                    # DVC remote'u — içerik hash'iyle adreslenmiş bloblar
+                              #   yalnızca `dvc push` / `dvc pull`, elle dokunulmaz (bkz. DVC.md)
 ```
 
 **Versiyonlama kuralı:** üretim parametreleri (PSF, gürültü, model dağılımı…) değişirse
 aynı prefix'e yazılmaz — `v2/` açılır. Böylece eski deneyler hangi veriyle koştuğunu
-kaybetmez. (DVC entegrasyonu bu düzenin üstüne gelecek.)
+kaybetmez. DVC bu düzenin üstüne gelir (onun yerine geçmez) — remote'u hazır,
+kurulum ve kullanım: [`DVC.md`](DVC.md).
 
 ## Erişim bilgileri
 
@@ -32,9 +36,10 @@ kaybetmez. (DVC entegrasyonu bu düzenin üstüne gelecek.)
 | **S3 endpoint (LAN)** | `http://10.10.1.132:30900` |
 | **S3 endpoint (cluster içi)** | `http://minio.deephorizon-data.svc:9000` |
 | **Console (tarayıcı)** | `http://10.10.1.132:30901` (LAN) — bucket gezinme |
-| **Kullanıcı: `ml-team`** | özel `ml-read` policy: listeleme+okuma, yalnızca `raw`+`datasets` — model eğitimi/inceleme için bunu kullan |
+| **Kullanıcı: `ml-team`** | `ml-read` policy: listeleme+okuma, `raw`+`datasets` · **+ `dvc-read`**: `dvc-cache` okuma (`dvc pull` için) — model eğitimi/inceleme için bunu kullan |
 | **Kullanıcı: `data-pipeline`** | read-write — yalnızca veri üreten kişi/pipeline kullanır |
 | **Kullanıcı: `mlflow`** | `mlflow-rw` policy: yalnızca `mlflow` bucket'ı — sadece MLflow server kullanır, kişiye verilmez |
+| **Kullanıcı: `dvc`** | `dvc-rw` policy: yalnızca `dvc-cache` — `dvc push` yapan kişi/pipeline kullanır (bkz. [`DVC.md`](DVC.md)) |
 | **MLflow tracking** | LAN: `http://10.10.1.132:30500` · cluster içi: `http://mlflow.deephorizon-ml.svc:5000` |
 
 Parolalar DevOps'tan (takım parola kasası). **Root credential kimseyle paylaşılmaz.**

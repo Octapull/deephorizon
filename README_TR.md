@@ -724,11 +724,14 @@ deephorizon/
 ├── infra/                                 # Tüm dağıtım artifaktları ⏳
 │   ├── k8s/
 │   │   ├── app-of-apps.yaml               #   Kök Argo CD Application
-│   │   ├── data/                          #   Airflow, MinIO manifest'leri (kustomize)
-│   │   ├── ml/                            #   MLflow, eğitim Job, çıkarım Deployment
-│   │   ├── app/                           #   Go API + Next.js (NodePort Service'leri; TLS host'taki NGINX Proxy Manager'da)
+│   │   ├── apps/                          #   Argo CD alt Application'ları
+│   │   ├── airflow/                       #   Airflow manifest'leri ve workspace PVC
+│   │   ├── minio/                         #   MinIO StatefulSet ve Service'leri
+│   │   ├── mlflow/                        #   MLflow Deployment ve Service
+│   │   ├── postgresql/                    #   Airflow ve MLflow PostgreSQL örnekleri
+│   │   ├── redis/                         #   Redis Deployment ve Service
 │   │   ├── monitor/                       #   Prometheus, Grafana, Argo CD
-│   │   └── secrets/                       #   SealedSecret manifest'leri (commit güvenli)
+│   │   └── secrets/                       #   Servis bazlı boş dizinler; Secret YAML Git dışında
 │   ├── docker/                            #   Dockerfile'lar (çok aşamalı)
 │   │   ├── ml.Dockerfile
 │   │   ├── api.Dockerfile
@@ -928,9 +931,13 @@ flowchart LR
 
 | Uygulama | Kaynak Yolu | Namespace | Sync Politikası |
 |:---|:---|:---|:---|
-| `deephorizon-data` | `infra/k8s/data/` | `deephorizon-data` | Otomatik sync |
-| `deephorizon-ml` | `infra/k8s/ml/` | `deephorizon-ml` | Otomatik sync |
-| `deephorizon-app` | `infra/k8s/app/` | `deephorizon-app` | Otomatik sync |
+| `airflow` | `infra/k8s/airflow/` | `deephorizon-data` | Otomatik sync |
+| `airflow-postgresql` | `infra/k8s/postgresql/airflow/` | `deephorizon-data` | Otomatik sync |
+| `data` | `infra/k8s/minio/` | `deephorizon-data` | Otomatik sync |
+| `ml` | `infra/k8s/mlflow/` | `deephorizon-ml` | Otomatik sync |
+| `mlflow-postgresql` | `infra/k8s/postgresql/mlflow/` | `deephorizon-ml` | Otomatik sync |
+| `app` | `infra/k8s/redis/` | `deephorizon-app` | Otomatik sync |
+| `secrets` | `infra/k8s/secrets/` | Kaynakta tanımlı | Otomatik sync, prune kapalı |
 | `deephorizon-monitor` | `infra/k8s/monitor/` | `deephorizon-monitor` | Otomatik sync |
 
 Argo CD bu repo'nun `infra/k8s/` dizinini izler ve `main`'e her push'ta otomatik sync yapar. Dağıtım akışında manuel `kubectl apply` yoktur — Git'te bir manifest değişirse, cluster'da değişir.
@@ -1044,7 +1051,7 @@ resources:
 
 ### Argo CD Stratejisi
 
-**App-of-apps** desenini kullanıyoruz: tek bir kök `Application` (`infra/k8s/app-of-apps.yaml`) tüm dört squad-seviyesi Application'ı izler. Yeni servis eklemek = tek bir manifest eklemek, `argocd app create` çalıştırmak değil. `main`'e her push'ta otomatik sync aktiftir.
+**App-of-apps** desenini kullanıyoruz: tek bir kök `Application` (`infra/k8s/app-of-apps.yaml`) `infra/k8s/apps/` altındaki teknoloji-seviyesi Application'ları izler. Yeni servis eklemek = tek bir manifest eklemek, `argocd app create` çalıştırmak değil. `main`'e her push'ta otomatik sync aktiftir.
 
 Takımın burada kullanacağı teknolojiler: **Argo CD CLI**, ortam-başına overlay için **`kustomize`**, üçüncü parti chart'lar için **Helm** (Sealed Secrets, gpu-operator).
 
@@ -1061,8 +1068,8 @@ Tüm hassas veriler (API anahtarları, kimlik bilgileri, bağlantı dizeleri) **
 ### Gizli Anahtar Akışı
 
 ```
-Geliştirici → kubeseal şifrele → SealedSecret (Git'e commit edilir)
-                                     ↓
+Yetkili operatör → kubeseal ile şifrele → SealedSecret YAML (Git dışında saklanır)
+                                     ↓ cluster'a uygula
                              Sealed Secrets Controller
                                      ↓
                              Kubernetes Secret (küme-içi)
