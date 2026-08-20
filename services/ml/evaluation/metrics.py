@@ -15,11 +15,15 @@ def _ensure_4d(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.ndim == 3:
         return tensor.unsqueeze(0)
     if tensor.ndim != 4:
-        raise ValueError(f"Expected a 2D, 3D, or 4D tensor, got shape {tuple(tensor.shape)}")
+        raise ValueError(
+            f"Expected a 2D, 3D, or 4D tensor, got shape {tuple(tensor.shape)}"
+        )
     return tensor
 
 
-def _validate_pair(prediction: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def _validate_pair(
+    prediction: torch.Tensor, target: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
     prediction = _ensure_4d(prediction).to(dtype=torch.float32)
     target = _ensure_4d(target).to(dtype=torch.float32)
 
@@ -53,7 +57,9 @@ def _gaussian_kernel(
     device: torch.device,
     dtype: torch.dtype,
 ) -> torch.Tensor:
-    coordinates = torch.arange(window_size, device=device, dtype=dtype) - window_size // 2
+    coordinates = (
+        torch.arange(window_size, device=device, dtype=dtype) - window_size // 2
+    )
     gaussian = torch.exp(-(coordinates**2) / (2.0 * sigma**2))
     gaussian = gaussian / gaussian.sum()
     window_2d = gaussian[:, None] * gaussian[None, :]
@@ -74,7 +80,9 @@ def compute_ssim(
         raise ValueError("window_size must be odd")
 
     channels = prediction.shape[1]
-    kernel = _gaussian_kernel(window_size, sigma, channels, prediction.device, prediction.dtype)
+    kernel = _gaussian_kernel(
+        window_size, sigma, channels, prediction.device, prediction.dtype
+    )
     padding = window_size // 2
 
     mu_prediction = F.conv2d(prediction, kernel, padding=padding, groups=channels)
@@ -84,17 +92,26 @@ def compute_ssim(
     mu_target_sq = mu_target.pow(2)
     mu_prediction_target = mu_prediction * mu_target
 
-    sigma_prediction_sq = F.conv2d(prediction * prediction, kernel, padding=padding, groups=channels) - mu_prediction_sq
-    sigma_target_sq = F.conv2d(target * target, kernel, padding=padding, groups=channels) - mu_target_sq
+    sigma_prediction_sq = (
+        F.conv2d(prediction * prediction, kernel, padding=padding, groups=channels)
+        - mu_prediction_sq
+    )
+    sigma_target_sq = (
+        F.conv2d(target * target, kernel, padding=padding, groups=channels)
+        - mu_target_sq
+    )
     sigma_prediction_target = (
-        F.conv2d(prediction * target, kernel, padding=padding, groups=channels) - mu_prediction_target
+        F.conv2d(prediction * target, kernel, padding=padding, groups=channels)
+        - mu_prediction_target
     )
 
     c1 = (0.01 * data_range) ** 2
     c2 = (0.03 * data_range) ** 2
 
     numerator = (2.0 * mu_prediction_target + c1) * (2.0 * sigma_prediction_target + c2)
-    denominator = (mu_prediction_sq + mu_target_sq + c1) * (sigma_prediction_sq + sigma_target_sq + c2)
+    denominator = (mu_prediction_sq + mu_target_sq + c1) * (
+        sigma_prediction_sq + sigma_target_sq + c2
+    )
 
     ssim_map = numerator / denominator.clamp_min(1e-12)
     return float(ssim_map.mean().item())
@@ -107,7 +124,9 @@ def compute_ssim(
 _LPIPS_CACHE: dict[str, torch.nn.Module] = {}
 
 
-def _get_lpips_model(net: str = "alex", device: torch.device | None = None) -> torch.nn.Module:
+def _get_lpips_model(
+    net: str = "alex", device: torch.device | None = None
+) -> torch.nn.Module:
     """Lazy-load and cache the LPIPS model."""
     import lpips  # type: ignore[import-untyped]
 
@@ -186,10 +205,16 @@ def _inception_features(
             # InceptionV3 expects 3-channel, 299x299, normalized
             if batch.shape[1] == 1:
                 batch = batch.repeat(1, 3, 1, 1)
-            batch = F.interpolate(batch, size=(299, 299), mode="bilinear", align_corners=False)
+            batch = F.interpolate(
+                batch, size=(299, 299), mode="bilinear", align_corners=False
+            )
             # ImageNet normalization
-            mean = torch.tensor([0.485, 0.456, 0.406], device=batch.device).view(1, 3, 1, 1)
-            std = torch.tensor([0.229, 0.224, 0.225], device=batch.device).view(1, 3, 1, 1)
+            mean = torch.tensor([0.485, 0.456, 0.406], device=batch.device).view(
+                1, 3, 1, 1
+            )
+            std = torch.tensor([0.229, 0.224, 0.225], device=batch.device).view(
+                1, 3, 1, 1
+            )
             batch = (batch - mean) / std
             feat = model(batch)
             features.append(feat.cpu())
@@ -230,7 +255,12 @@ def compute_fid(
     if np.iscomplexobj(covmean):
         covmean = covmean.real
 
-    fid = float(diff @ diff + np.trace(sigma_real) + np.trace(sigma_fake) - 2.0 * np.trace(covmean))
+    fid = float(
+        diff @ diff
+        + np.trace(sigma_real)
+        + np.trace(sigma_fake)
+        - 2.0 * np.trace(covmean)
+    )
     return fid
 
 
