@@ -166,14 +166,14 @@ def test_esrgan_generator_invalid_num_rrdb() -> None:
 
 
 def test_esrgan_generator_param_count() -> None:
-    """ESRGANGenerator ~16M parametre civarında (23 RRDB, features=64)."""
+    """ESRGANGenerator ~9.4M parametre (23 RRDB, features=64, scale=1)."""
     model = ESRGANGenerator(
         in_channels=1, out_channels=1, num_rrdb=23, features=64, scale=1
     )
     n_params = sum(p.numel() for p in model.parameters())
 
-    # ESRGAN makalesi: ~16M parametre (23 RRDB, features=64)
-    assert 10_000_000 < n_params < 25_000_000
+    # 23 RRDB × ~400K + head/tail ≈ 9.4M (scale=1, grayscale)
+    assert 8_000_000 < n_params < 11_000_000
 
 
 # ---------------------------------------------------------------------------
@@ -248,9 +248,9 @@ def test_ra_discriminator_relativistic_logits() -> None:
 
 
 def test_ra_discriminator_param_count() -> None:
-    """RaDiscriminator ~3M parametre civarında (5 katman, C64-C512)."""
+    """RaDiscriminator ~7M parametre (5 katman, C64-C512, in_channels=2)."""
     model = RaDiscriminator(in_channels=2, base_channels=64, n_layers=5)
     n_params = sum(p.numel() for p in model.parameters())
 
-    # ESRGAN RaGAN: ~3M parametre
-    assert 1_000_000 < n_params < 6_000_000
+    # 5-layer PatchGAN with C64→C512 channel doubling ≈ 7M
+    assert 5_000_000 < n_params < 9_000_000

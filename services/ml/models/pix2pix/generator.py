@@ -10,6 +10,7 @@ Reference:
     "Image-to-Image Translation with Conditional Adversarial Networks."
     CVPR.
 """
+
 from __future__ import annotations
 
 import torch
@@ -52,24 +53,13 @@ class Pix2PixGenerator(nn.Module):
         self.use_tanh = use_tanh
 
         # Core U-Net (encoder-decoder with skip connections)
-        self.unet = UNet()
-
-        # Override first conv to accept arbitrary in_channels.
-        # The default UNet is hard-coded to 1 input channel; we replace
-        # enc1's first conv to support multi-channel inputs while keeping
-        # the rest of the architecture intact.
-        if in_channels != 1:
-            self.unet.enc1 = self._make_input_block(in_channels, 64)
-
-        # Override output conv for arbitrary out_channels.
-        if out_channels != 1:
-            self.unet.output = nn.Conv2d(64, out_channels, kernel_size=1)
+        self.unet = UNet(in_channels=in_channels, out_channels=out_channels)
 
         # Dropout applied after each upconv (decoder path).
         # Pix2Pix paper applies dropout only in decoder; we mirror that.
         self._dropout_layers = nn.ModuleList()
         if dropout > 0.0:
-            for _ in range(4):  # 4 decoder levels (up1..up4)
+            for _ in range(len(self.unet.ups)):  # decoder level sayısı kadar
                 self._dropout_layers.append(nn.Dropout2d(p=dropout))
 
         # Output activation — Tanh constrains to [-1, 1].
@@ -97,42 +87,27 @@ class Pix2PixGenerator(nn.Module):
             Generated image of shape ``(B, out_channels, H, W)``,
             optionally passed through ``Tanh``.
         """
-        # Encoder path
-        x1 = self.unet.enc1(x)
-        x2 = self.unet.pool1(x1)
-        x2 = self.unet.enc2(x2)
-        x3 = self.unet.pool2(x2)
-        x3 = self.unet.enc3(x3)
-        x4 = self.unet.pool3(x3)
-        x4 = self.unet.enc4(x4)
-        x5 = self.unet.pool4(x4)
-        x5 = self.unet.bottleneck(x5)
+        # Encoder path — her seviyede skip connection sakla
+        skips = []
+        h = x
+        for i, (encoder, pool) in enumerate(zip(self.unet.encoders, self.unet.pools)):
+            h = encoder(h)
+            skips.append(h)
+            h = pool(h)
+
+        # Bottleneck
+        h = self.unet.bottleneck(h)
 
         # Decoder path with optional dropout
-        x = self.unet.up1(x5)
-        if self._dropout_layers:
-            x = self._dropout_layers[0](x)
-        x = torch.cat([x, x4], dim=1)
-        x = self.unet.dec1(x)
+        for i, (up, decoder, skip) in enumerate(
+            zip(self.unet.ups, self.unet.decoders, reversed(skips))
+        ):
+            h = up(h)
+            if self._dropout_layers and i < len(self._dropout_layers):
+                h = self._dropout_layers[i](h)
+            h = torch.cat([h, skip], dim=1)
+            h = decoder(h)
 
-        x = self.unet.up2(x)
-        if self._dropout_layers:
-            x = self._dropout_layers[1](x)
-        x = torch.cat([x, x3], dim=1)
-        x = self.unet.dec2(x)
-
-        x = self.unet.up3(x)
-        if self._dropout_layers:
-            x = self._dropout_layers[2](x)
-        x = torch.cat([x, x2], dim=1)
-        x = self.unet.dec3(x)
-
-        x = self.unet.up4(x)
-        if self._dropout_layers:
-            x = self._dropout_layers[3](x)
-        x = torch.cat([x, x1], dim=1)
-        x = self.unet.dec4(x)
-
-        x = self.unet.output(x)
-        x = self._tanh(x)
-        return x
+        h = self.unet.output(h)
+        h = self._tanh(h)
+        return h
