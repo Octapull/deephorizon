@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: training-image-build-20260810-v2
+  namespace: deephorizon-ml
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      initContainers:
+        - name: unpack-context
+          image: localhost:32000/deephorizon-training:2026-08-07b
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - mkdir -p /workspace && tar --touch --no-same-owner --no-same-permissions -xzf /context/context.tar.gz -C /workspace
+          volumeMounts:
+            - name: context-archive
+              mountPath: /context
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2-debug
+          args:
+            - --dockerfile=/workspace/Dockerfile
+            - --context=dir:///workspace
+            - --destination=registry.container-registry.svc.cluster.local:5000/deephorizon-training:20260810-unet100-v2
+            - --insecure-registry=registry.container-registry.svc.cluster.local:5000
+            - --skip-tls-verify-registry=registry.container-registry.svc.cluster.local:5000
+            - --snapshot-mode=redo
+            - --verbosity=info
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: context-archive
+          configMap:
+            name: training-build-context-20260810-v2
+        - name: workspace
+          emptyDir: {}
