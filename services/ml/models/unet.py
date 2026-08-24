@@ -11,10 +11,9 @@ class DoubleConv(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -23,69 +22,88 @@ class DoubleConv(nn.Module):
 
 class UNet(nn.Module):
 
-    def __init__(self):
+    def __init__(
+        self,
+        in_channels: int = 1,
+        out_channels: int = 1,
+        features: list[int] | None = None,
+    ):
+        """U-Net encoder-decoder with skip connections.
+
+        Args:
+            in_channels: Number of input channels (default: 1 for grayscale).
+            out_channels: Number of output channels (default: 1).
+            features: Channel widths at each encoder level. Length determines
+                depth. Default: [64, 128, 256, 512] (4-level U-Net).
+        """
         super().__init__()
 
-        self.enc1 = DoubleConv(1, 64)
-        self.pool1 = nn.MaxPool2d(2)
+        if features is None:
+            features = [64, 128, 256, 512]
 
-        self.enc2 = DoubleConv(64, 128)
-        self.pool2 = nn.MaxPool2d(2)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.features = features
 
-        self.enc3 = DoubleConv(128, 256)
-        self.pool3 = nn.MaxPool2d(2)
+        # Encoder
+        self.encoders = nn.ModuleList()
+        self.pools = nn.ModuleList()
+        prev_channels = in_channels
+        for feat in features:
+            self.encoders.append(DoubleConv(prev_channels, feat))
+            self.pools.append(nn.MaxPool2d(2))
+            prev_channels = feat
 
-        self.enc4 = DoubleConv(256, 512)
-        self.pool4 = nn.MaxPool2d(2)
+        # Bottleneck (2x son feature)
+        self.bottleneck = DoubleConv(features[-1], features[-1] * 2)
 
-        self.bottleneck = DoubleConv(512, 1024)
+        # Decoder
+        self.ups = nn.ModuleList()
+        self.decoders = nn.ModuleList()
+        reversed_features = list(reversed(features))
+        for i in range(len(reversed_features)):
+            in_feat = reversed_features[i] * 2  # bottleneck veya onceki decoder
+            out_feat = reversed_features[i]
+            self.ups.append(
+                nn.ConvTranspose2d(in_feat, out_feat, kernel_size=2, stride=2)
+            )
+            # Skip connection: concat(out_feat, encoder[i]) → DoubleConv
+            self.decoders.append(DoubleConv(out_feat * 2, out_feat))
 
-        self.up1 = nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2)
-        self.dec1 = DoubleConv(1024, 512)
+        # Output projection
+        self.output = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
-        self.up2 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
-        self.dec2 = DoubleConv(512, 256)
-
-        self.up3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
-        self.dec3 = DoubleConv(256, 128)
-
-        self.up4 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
-        self.dec4 = DoubleConv(128, 64)
-
-        self.output = nn.Conv2d(64, 1, kernel_size=1)
+        # Backward-compat aliases (Pix2Pix/ESRGAN generator'leri bunlara erişiyor)
+        # enc1, enc2, ... → encoder blokları
+        # pool1, pool2, ... → pooling katmanları
+        # up1, up2, ... → upsampling katmanları
+        # dec1, dec2, ... → decoder blokları
+        for i, (enc, pool, up, dec) in enumerate(
+            zip(self.encoders, self.pools, reversed(self.ups), reversed(self.decoders))
+        ):
+            setattr(self, f"enc{i + 1}", enc)
+            setattr(self, f"pool{i + 1}", pool)
+        for i, (up, dec) in enumerate(zip(reversed(self.ups), reversed(self.decoders))):
+            setattr(self, f"up{i + 1}", up)
+            setattr(self, f"dec{i + 1}", dec)
 
     def forward(self, x):
+        # Encoder: her seviyede feature map'i sakla (skip connection için)
+        skips = []
+        for encoder, pool in zip(self.encoders, self.pools):
+            x = encoder(x)
+            skips.append(x)
+            x = pool(x)
 
-        x1 = self.enc1(x)
+        # Bottleneck
+        x = self.bottleneck(x)
 
-        x2 = self.pool1(x1)
-        x2 = self.enc2(x2)
+        # Decoder: skip connection'ları ters sırayla kullan
+        for up, decoder, skip in zip(self.ups, self.decoders, reversed(skips)):
+            x = up(x)
+            x = torch.cat([x, skip], dim=1)
+            x = decoder(x)
 
-        x3 = self.pool2(x2)
-        x3 = self.enc3(x3)
-
-        x4 = self.pool3(x3)
-        x4 = self.enc4(x4)
-
-        x5 = self.pool4(x4)
-        x5 = self.bottleneck(x5)
-
-        x = self.up1(x5)
-        x = torch.cat([x, x4], dim=1)
-        x = self.dec1(x)
-
-        x = self.up2(x)
-        x = torch.cat([x, x3], dim=1)
-        x = self.dec2(x)
-
-        x = self.up3(x)
-        x = torch.cat([x, x2], dim=1)
-        x = self.dec3(x)
-
-        x = self.up4(x)
-        x = torch.cat([x, x1], dim=1)
-        x = self.dec4(x)
-
+        # Output projection
         x = self.output(x)
-
         return x

@@ -1,0 +1,145 @@
+# DeepHorizon Restormer training — K8s Job manifest.
+# Faz 5 Görev 46: Restormer eğitim job'ı.
+#
+# Bu manifest, Restormer (Transformer tabanlı görüntü restorasyon modeli)
+# eğitimi için K8s Job tanımlar. baseline-training-job.yaml'dan farkları:
+#
+#   - model=restormer (U-Net yerine)
+#   - patch_size=128 (512×512 görüntülerden rastgele crop)
+#   - loss.name=combined (L1 + perceptual + physics)
+#   - scheduler=cosine (Restormer paper default)
+#   - 300 epoch (Restormer paper default)
+#   - Daha yüksek memory limit (transformer attention için)
+#
+# Topology:
+#   - PriorityClass: training-priority (inference yokken GPU kullanır)
+#   - Node selector: workload=training (training node'larına yönlendir)
+#   - GPU: nvidia.com/gpu: 1 (L40S)
+#   - activeDeadlineSeconds: 432000 (5 gün — 300 epoch uzun sürebilir)
+#
+# Deploy:
+#   kubectl apply -f infra/k8s/ml/training-job.yaml
+#
+# İzleme:
+#   kubectl logs -f job/restormer-300ep-<tarih> -n deephorizon-ml
+#   kubectl get jobs -n deephorizon-ml
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restormer-300ep-20260824
+  namespace: deephorizon-ml
+  labels:
+    app: ml-training
+    model: restormer
+    dataset: training-512-v1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 432000  # 5 gün; 300 epoch uzun sürebilir
+  ttlSecondsAfterFinished: 604800  # 7 gün sonra temizle
+  template:
+    metadata:
+      labels:
+        app: ml-training
+        model: restormer
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      # Training node'larına yönlendir (inference node'larından ayrı)
+      nodeSelector:
+        workload: training
+      # GPU toleration — training node'larında GPU taint olabilir
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      # Training priority — inference yokken GPU kullanır
+      priorityClassName: training-priority
+      containers:
+        - name: trainer
+          image: localhost:32000/deephorizon-training:20260824-restormer-v1
+          imagePullPolicy: IfNotPresent
+          args:
+            # ─── Model: Restormer ───
+            - "model=restormer"
+            - "model.dim=48"
+            - "model.num_blocks=[4,6,6,8]"
+            - "model.num_heads=[1,2,4,8]"
+            - "model.expansion_factor=2.66"
+            - "model.patch_size=128"
+            # ─── Training: 300 epoch, cosine scheduler ───
+            - "training.epochs=300"
+            - "training.batch_size=8"
+            - "training.learning_rate=1.0e-4"
+            - "training.scheduler.name=cosine"
+            - "training.scheduler.min_lr=1.0e-6"
+            # ─── AMP + gradient accumulation ───
+            - "training.amp=true"
+            - "training.amp_dtype=bfloat16"
+            - "training.grad_accum_steps=2"
+            # ─── Early stopping ───
+            - "training.early_stopping.enabled=true"
+            - "training.early_stopping.min_epochs=100"
+            - "training.early_stopping.patience=30"
+            - "training.early_stopping.min_delta=1.0e-5"
+            # ─── Loss: combined (L1 + perceptual + physics) ───
+            - "loss.name=combined"
+            # ─── Data: MinIO'dan 512×512 patch'ler ───
+            - "data.use_minio=true"
+            - "data.minio_prefix=training-512/v1"
+            - "data.augment=true"
+            - "data.num_workers=4"
+            - "data.pin_memory=true"
+            # ─── Device ───
+            - "device=cuda"
+            # ─── Paths ───
+            - "paths.output_dir=/app/runs/restormer-300ep-20260824"
+            - "hydra.run.dir=/app/runs/restormer-300ep-20260824/hydra"
+            # ─── MLflow ───
+            - "mlflow.experiment_name=restormer"
+            - "mlflow.run_name=restormer-300ep-20260824"
+          env:
+            - name: MINIO_ENDPOINT
+              value: http://minio.deephorizon-data.svc:9000
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: secret_key
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow.deephorizon-ml.svc:5000
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: /app
+            # Hangi egitim script'inin calisacagini sec (Faz 5: Restormer)
+            - name: TRAINING_SCRIPT
+              value: "services.ml.training.train_restormer"
+          resources:
+            requests:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: outputs
+              mountPath: /app/runs
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: outputs
+          persistentVolumeClaim:
+              claimName: training-outputs-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi

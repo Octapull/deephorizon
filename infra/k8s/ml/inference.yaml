@@ -1,0 +1,157 @@
+# DeepHorizon inference server — K8s Deployment + Service.
+# Faz 3 Adım 28: gRPC inference + Prometheus metrics.
+#
+# Topology:
+#   - 1 replica (GPU pod, scale=0 ile başla, ihtiyaç olursa artır)
+#   - NodePort 30551 → gRPC (50051)
+#   - ClusterIP 8000 → Prometheus metrics
+#   - GPU: nvidia.com/gpu: 1 (L40S node selector)
+#   - PriorityClass: high-priority (training job'larından önce schedule)
+#
+# Deploy:
+#   kubectl apply -f infra/k8s/ml/inference.yaml
+#
+# Test:
+#   kubectl port-forward svc/inference 50051:50051 -n deephorizon-ml
+#   grpcurl -plaintext -d '{"image": {"data": "...", "mime_type": "image/png"}, "model_id": "pix2pix-v1"}' \
+#     localhost:50051 deephorizon.v1.InferenceService/Enhance
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inference
+  namespace: deephorizon-ml
+  labels:
+    app: inference
+    component: ml-serving
+spec:
+  type: NodePort
+  selector:
+    app: inference
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      nodePort: 30551
+      protocol: TCP
+    - name: metrics
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  namespace: deephorizon-ml
+  labels:
+    app: inference
+    component: ml-serving
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # GPU pod — rolling update sırasında 2 pod aynı anda çalışamaz
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+        component: ml-serving
+    spec:
+      restartPolicy: Always
+      automountServiceAccountToken: false
+      priorityClassName: high-priority
+      # L40S GPU node selector
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-L40S
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: inference-server
+          image: localhost:32000/deephorizon-inference:v1
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--models-dir"
+            - "/app/exports"
+            - "--port"
+            - "50051"
+            - "--metrics-port"
+            - "8000"
+            - "--max-workers"
+            - "4"
+            - "--log-level"
+            - "INFO"
+          ports:
+            - name: grpc
+              containerPort: 50051
+              protocol: TCP
+            - name: metrics
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: /app
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "4"
+              memory: 8Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: models
+              mountPath: /app/exports
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: inference-models-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+
+---
+# PVC for ONNX models (MinIO'dan indirilen veya build-time bake edilen)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inference-models-pvc
+  namespace: deephorizon-ml
+  labels:
+    app: inference
+    component: ml-serving
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: microk8s-hostpath

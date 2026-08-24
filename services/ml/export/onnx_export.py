@@ -27,6 +27,7 @@ from typing import Literal
 import torch
 
 from services.ml.models.pix2pix import Pix2PixGenerator
+from services.ml.models.restormer import build_restormer
 from services.ml.models.unet import UNet
 
 # ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ class ExportMetadata:
     """
 
     model_name: str
-    model_type: Literal["unet", "pix2pix_generator"]
+    model_type: Literal["unet", "pix2pix_generator", "restormer"]
     onnx_opset: int
     input_shape: tuple[int, ...]
     output_shape: tuple[int, ...]
@@ -112,17 +113,73 @@ def _load_pix2pix_from_checkpoint(
     return model, checkpoint
 
 
+def _load_restormer_from_checkpoint(
+    checkpoint_path: Path,
+    device: torch.device,
+    dim: int = 48,
+    num_blocks: list[int] | None = None,
+    num_heads: list[int] | None = None,
+    expansion_factor: float = 2.66,
+) -> tuple[torch.nn.Module, dict]:
+    """Load a Restormer model from a standard checkpoint.
+
+    Restormer'ın mimari parametreleri (dim, num_blocks, num_heads,
+    expansion_factor) checkpoint'te saklanmaz — bu yüzden ``build_restormer``
+    factory'sine dışarıdan geçilmesi gerekir. Varsayılanlar Restormer
+    makalesindeki orijinal değerlerdir (54.3M parametre).
+
+    Args:
+        checkpoint_path: Path to the ``.pt`` checkpoint.
+        device: Device to map tensors to.
+        dim: Base channel count for level 1 (default 48).
+        num_blocks: Transformer blocks per level (default [4, 6, 6, 8]).
+        num_heads: Attention heads per level (default [1, 2, 4, 8]).
+        expansion_factor: GDFN expansion ratio (default 2.66).
+
+    Returns:
+        Tuple of ``(model, checkpoint_dict)``. The model is in eval mode.
+    """
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    state_dict = checkpoint["model_state_dict"]
+
+    # Infer in/out channels from checkpoint shape
+    # shallow.weight shape: (out=dim, in=in_channels, 3, 3)
+    shallow_weight = state_dict["shallow.weight"]
+    in_channels = shallow_weight.shape[1]
+
+    # output.weight shape: (out=out_channels, in=dim, 3, 3)
+    output_weight = state_dict["output.weight"]
+    out_channels = output_weight.shape[0]
+
+    model = build_restormer(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        dim=dim,
+        num_blocks=num_blocks,
+        num_heads=num_heads,
+        expansion_factor=expansion_factor,
+    )
+    model.load_state_dict(state_dict)
+    model.eval()
+    return model, checkpoint
+
+
 def load_model_from_checkpoint(
     checkpoint_path: Path | str,
-    model_type: Literal["unet", "pix2pix_generator"],
+    model_type: Literal["unet", "pix2pix_generator", "restormer"],
     device: torch.device | None = None,
+    restormer_kwargs: dict | None = None,
 ) -> tuple[torch.nn.Module, dict]:
     """Load a model from a checkpoint file.
 
     Args:
         checkpoint_path: Path to the ``.pt`` checkpoint.
-        model_type: ``"unet"`` or ``"pix2pix_generator"``.
+        model_type: ``"unet"``, ``"pix2pix_generator"``, or ``"restormer"``.
         device: Device to map tensors to. Defaults to CPU.
+        restormer_kwargs: Optional dict with Restormer architecture params
+            (``dim``, ``num_blocks``, ``num_heads``, ``expansion_factor``).
+            Required only when ``model_type="restormer"`` and the
+            checkpoint was saved with non-default architecture.
 
     Returns:
         Tuple of ``(model, checkpoint_dict)``. The model is in eval mode.
@@ -138,10 +195,13 @@ def load_model_from_checkpoint(
         return _load_unet_from_checkpoint(checkpoint_path, device)
     if model_type == "pix2pix_generator":
         return _load_pix2pix_from_checkpoint(checkpoint_path, device)
+    if model_type == "restormer":
+        kwargs = restormer_kwargs or {}
+        return _load_restormer_from_checkpoint(checkpoint_path, device, **kwargs)
 
     raise ValueError(
         f"Unknown model_type: {model_type!r}. "
-        f"Supported: 'unet', 'pix2pix_generator'."
+        f"Supported: 'unet', 'pix2pix_generator', 'restormer'."
     )
 
 
@@ -310,22 +370,26 @@ def load_metadata(metadata_path: Path | str) -> ExportMetadata:
 def export_checkpoint_to_onnx(
     checkpoint_path: Path | str,
     output_path: Path | str,
-    model_type: Literal["unet", "pix2pix_generator"] = "pix2pix_generator",
+    model_type: Literal["unet", "pix2pix_generator", "restormer"] = "pix2pix_generator",
     input_shape: tuple[int, ...] = (1, 1, 256, 256),
     onnx_opset: int = 17,
     dynamic_axes: bool = True,
     validate: bool = True,
+    restormer_kwargs: dict | None = None,
 ) -> tuple[Path, Path]:
     """End-to-end export: checkpoint → ONNX + metadata.
 
     Args:
         checkpoint_path: Path to the ``.pt`` checkpoint.
         output_path: Where to write the ``.onnx`` file.
-        model_type: ``"unet"`` or ``"pix2pix_generator"``.
-        input_shape: Dummy input shape ``(B, C, H, W)``.
+        model_type: ``"unet"``, ``"pix2pix_generator"``, or ``"restormer"``.
+        input_shape: Dummy input shape ``(B, C, H, W)``. For Restormer,
+            use a patch-compatible size (e.g., ``(1, 1, 128, 128)``).
         onnx_opset: ONNX opset version.
         dynamic_axes: Allow variable batch/spatial dims.
         validate: Validate PyTorch vs ONNX outputs.
+        restormer_kwargs: Optional Restormer architecture params
+            (``dim``, ``num_blocks``, ``num_heads``, ``expansion_factor``).
 
     Returns:
         Tuple of ``(onnx_path, metadata_path)``.
@@ -341,6 +405,7 @@ def export_checkpoint_to_onnx(
         checkpoint_path=checkpoint_path,
         model_type=model_type,
         device=device,
+        restormer_kwargs=restormer_kwargs,
     )
 
     # Export
