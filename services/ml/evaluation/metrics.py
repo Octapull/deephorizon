@@ -418,6 +418,9 @@ def compute_metrics(
         prediction: Predicted image tensor.
         target: Target image tensor.
         data_range: PSNR/SSIM için veri aralığı (varsayılan 1.0).
+            Pix2Pix generator ``use_tanh=True`` ile ``[-1, 1]`` üretir;
+            bu durumda çağıran taraf ``data_range=2.0`` geçmeli ya da
+            prediction'ı ``[0, 1]`` aralığına map etmeli.
         include_lpips: True ise "lpips" anahtarı eklenir (yavaş, lazy load).
         include_physics: True ise flux/ring/asymmetry anahtarları eklenir.
 
@@ -434,3 +437,20 @@ def compute_metrics(
     if include_physics:
         metrics.update(compute_physics_metrics(prediction, target))
     return metrics
+
+
+def to_unit_range(tensor: torch.Tensor) -> torch.Tensor:
+    """Map ``[-1, 1]`` aralığındaki tensörü ``[0, 1]`` aralığına taşı.
+
+    Pix2Pix generator ``Tanh`` aktivasyonu ile ``[-1, 1]`` üretir; PSNR/SSIM
+    gibi ``[0, 1]`` varsayan metriklerle karşılaştırmadan önce bu dönüşüm
+    gerekir. Tensör zaten ``[0, 1]`` aralığındaysa dokunmadan döner.
+
+    Args:
+        tensor: Girdi tensörü, ``[-1, 1]`` veya ``[0, 1]`` aralığında.
+
+    Returns:
+        ``[0, 1]`` aralığında tensör.
+    """
+    tensor = tensor.detach().clamp(-1.0, 1.0)
+    return (tensor + 1.0) * 0.5

@@ -1,0 +1,90 @@
+# @package _global_
+# ESRGAN polish training — Faz 5 Görev 37'
+#
+# Bu config, temel ESRGAN eğitiminden (default.yaml) farklı olarak:
+#   - 300 epoch (varsayılan 10 yerine)
+#   - Perceptual loss ağırlığı artırılmış (1.0 → 5.0)
+#   - Physics loss ağırlığı artırılmış (0.5 → 2.0)
+#   - Adversarial loss ağırlığı azaltılmış (1.0 → 0.5) — perceptual baskın
+#   - Extreme split üzerinde fine-tune
+#   - Daha düşük learning rate (5e-5) — polish aşaması için
+#
+# Kullanım:
+#   python -m services.ml.training.train_esrgan \
+#     training=esrgan_polish \
+#     data.split=extreme \
+#     mlflow.run_name=esrgan-polish-300ep-extreme
+
+training:
+  epochs: 300
+  batch_size: 8
+  learning_rate: 5.0e-5           # Polish: düşük LR, ince ayar
+  val_ratio: 0.2
+
+  optimizer:
+    name: adam
+    betas: [0.9, 0.999]
+    weight_decay: 0.0
+
+  scheduler:
+    name: cosine                  # Cosine annealing — polish için ideal
+    factor: 0.5
+    patience: 10
+    min_lr: 1.0e-7
+
+  early_stopping:
+    enabled: true
+    min_epochs: 150               # 300 epoch'un yarısından önce durma
+    patience: 40                  # Sabırlı ol — polish yavaş ilerler
+    min_delta: 1.0e-6
+
+  resume_from: null
+  warm_start_from: null           # İlk run; sonraki run'larda best_model.pt verilebilir
+
+  amp: true
+  amp_dtype: bfloat16
+  grad_accum_steps: 2
+
+  save_every_epoch: true
+  keep_last_n: 5                  # 300 epoch için daha fazla checkpoint tut
+
+  discriminator_lr_factor: 0.3    # D lr = G lr × 0.3 (polish'te D daha yavaş)
+
+# ─── Loss tuning (Faz 5 polish) ───
+# Varsayılan combined loss ağırlıkları:
+#   pixel=100, perceptual=1.0, adversarial=1.0, physics=0.5
+#
+# Polish aşaması için:
+#   - perceptual ↑ (doku kalitesi için kritik)
+#   - adversarial ↓ (mode collapse riskini azaltır)
+#   - physics ↑ (fizik tutarlılığı için)
+loss:
+  name: combined
+  pixel_loss: l1
+  weights:
+    pixel: 100.0                  # Sabit — temel yeniden yapılandırma
+    perceptual: 5.0               # ↑ 1.0 → 5.0 (doku kalitesi)
+    adversarial: 0.5              # ↓ 1.0 → 0.5 (kararlılık)
+    physics: 2.0                  # ↑ 0.5 → 2.0 (fizik tutarlılığı)
+  gan_mode: lsgan
+  perceptual_layer: relu3_3       # relu2_2 → relu3_3 (daha derin özellikler)
+
+# ─── Data: extreme split ───
+data:
+  use_minio: true
+  bucket_name: datasets
+  minio_prefix: training-512/v1
+  augment: true
+  crop_size: 128                  # Patch-based training (ESRGAN için)
+  split: extreme                  # ← Polish: extreme split üzerinde fine-tune
+  max_samples: null
+  num_workers: 4
+  pin_memory: true
+  drop_last: true
+
+# ─── MLflow ───
+mlflow:
+  tracking_uri: "http://mlflow.deephorizon-ml.svc:5000"
+  experiment_name: "esrgan-polish"
+  run_name: null                  # CLI'dan override edilir
+  log_model: true

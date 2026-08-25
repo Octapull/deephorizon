@@ -1,0 +1,160 @@
+# DeepHorizon Pix2Pix training — K8s Job manifest.
+# Faz 2 Adım 11-13: Pix2Pix GAN eğitimi (Generator + Discriminator).
+#
+# MLOps notları (2026-08-24):
+#   - İmaj: localhost:32000/deephorizon-training:2026-08-24 (main'den derlendi,
+#     gan_train.py + models/pix2pix + losses hepsi içinde; yeniden derleme yok).
+#   - ENTRYPOINT U-Net trainer'ına sabitli; GAN için command ile EZİLMELİ:
+#       command: ["python", "-m", "services.ml.training.gan_train"]
+#   - args Hydra override'ları normal şekilde çalışır.
+#   - /dev/shm volume + nvidia.com/gpu: 1 baseline manifest'ten aynen taşındı.
+#   - GPU'ya yalnızca K8s Job üzerinden erişilmeli (host'ta docker run --gpus YASAK).
+#
+# baseline-training-job.yaml'dan farkları:
+#   - command ile ENTRYPOINT eziliyor (gan_train.py)
+#   - model=pix2pix (U-Net yerine GAN)
+#   - loss.name=combined (L1 + perceptual + adversarial + physics)
+#   - 100 epoch (GAN'lar daha uzun eğitim ister)
+#   - Daha yüksek memory (G + D + 2 optimizer state + VGG19 perceptual)
+#
+# Topology:
+#   - PriorityClass: training-priority (inference yokken GPU kullanır)
+#   - Node selector: workload=training (training node'larına yönlendir)
+#   - GPU: nvidia.com/gpu: 1 (L40S)
+#   - activeDeadlineSeconds: 432000 (5 gün)
+#
+# Deploy:
+#   kubectl apply -f infra/k8s/ml/pix2pix-training-job.yaml
+#
+# İzleme:
+#   kubectl logs -f job/pix2pix-100ep-20260824 -n deephorizon-ml
+#   kubectl get jobs -n deephorizon-ml
+#   kubectl describe pod <pod-adı> -n deephorizon-ml   # Events bölümüne bak
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pix2pix-100ep-20260824
+  namespace: deephorizon-ml
+  labels:
+    app: ml-training
+    model: pix2pix
+    dataset: training-512-v1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 432000  # 5 gün; GAN eğitimi uzun sürebilir
+  ttlSecondsAfterFinished: 604800  # 7 gün sonra temizle
+  template:
+    metadata:
+      labels:
+        app: ml-training
+        model: pix2pix
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      # NOT: nodeSelector/tolerations/priorityClassName YOK.
+      # Bu cluster tek-node (deephorizon) ve node'da `workload=training`
+      # label'ı ile `nvidia.com/gpu` taint'ı yok. Eğer çok-node'lu bir
+      # cluster'a geçilirse bu alanlar geri eklenmeli.
+      containers:
+        - name: trainer
+          # MLOps ekibinin derlediği imaj (main'in son hâli, 2026-08-24).
+          # ENTRYPOINT U-Net trainer'ına sabitli; aşağıda command ile eziyoruz.
+          image: localhost:32000/deephorizon-training:2026-08-24
+          imagePullPolicy: IfNotPresent
+          # ENTRYPOINT ezme: GAN eğitimi farklı modül.
+          # command + args birlikte verilince ikisi de kullanılır;
+          # Hydra override'ları args üzerinden normal şekilde çalışır.
+          command:
+            - "python"
+            - "-m"
+            - "services.ml.training.gan_train"
+          args:
+            # ─── Model: Pix2Pix GAN ───
+            - "model=pix2pix"
+            - "model.in_channels=1"
+            - "model.out_channels=1"
+            - "model.generator.dropout=0.5"
+            - "model.generator.use_tanh=true"
+            - "model.discriminator.in_channels=2"
+            - "model.discriminator.base_channels=64"
+            - "model.discriminator.max_channels=512"
+            - "model.discriminator.n_layers=3"
+            - "model.discriminator.use_sigmoid=true"
+            # ─── Training: 100 epoch ───
+            - "training.epochs=100"
+            - "training.batch_size=8"
+            - "training.learning_rate=2.0e-4"
+            - "training.scheduler.name=reduce_on_plateau"
+            # ─── AMP + gradient accumulation ───
+            - "training.amp=true"
+            - "training.amp_dtype=bfloat16"
+            - "training.grad_accum_steps=1"
+            # ─── GAN stabilizasyonu: G:D = 2:1 (D çöküşlerini azaltır) ───
+            - "training.n_critic=2"
+            # ─── Best model seçimi: PSNR (image restoration için daha güvenilir) ───
+            - "training.best_metric=psnr"
+            # ─── Early stopping ───
+            - "training.early_stopping.enabled=true"
+            - "training.early_stopping.min_epochs=40"
+            - "training.early_stopping.patience=15"
+            - "training.early_stopping.min_delta=1.0e-5"
+            # ─── Loss: combined (L1 + perceptual + adversarial + physics) ───
+            - "loss.name=combined"
+            # ─── Data: MinIO'dan heavy split ───
+            - "data.use_minio=true"
+            - "data.bucket_name=datasets"
+            - "data.minio_prefix=training-512/v1"
+            - "data.augment=true"
+            - "data.num_workers=4"
+            - "data.pin_memory=true"
+            # ─── Device ───
+            - "device=cuda"
+            # ─── Paths ───
+            - "paths.output_dir=/app/runs/pix2pix-100ep-20260824"
+            - "hydra.run.dir=/app/runs/pix2pix-100ep-20260824/hydra"
+            # ─── MLflow ───
+            - "mlflow.experiment_name=pix2pix"
+            - "mlflow.run_name=pix2pix-100ep-20260824"
+          env:
+            - name: MINIO_ENDPOINT
+              value: http://minio.deephorizon-data.svc:9000
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: secret_key
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow.deephorizon-ml.svc:5000
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: /app
+          resources:
+            requests:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: outputs
+              mountPath: /app/runs
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: outputs
+          persistentVolumeClaim:
+            claimName: training-outputs-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi

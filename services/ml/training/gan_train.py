@@ -67,6 +67,7 @@ from services.ml.evaluation.benchmark import (
     save_sample_outputs,
     save_validation_summary,
 )
+from services.ml.evaluation.metrics import to_unit_range
 from services.ml.losses.combined import CombinedLoss
 from services.ml.losses.gan import DiscriminatorAdversarialLoss
 from services.ml.models.pix2pix import PatchDiscriminator, Pix2PixGenerator
@@ -333,6 +334,11 @@ def train_gan(cfg: DictConfig) -> Path:
             running_d_loss = 0.0
             batch_count = 0
 
+            # GAN stabilizasyonu: G:D oranı (varsayılan 1:1, önerilen 2:1).
+            # D çok güçlendiğinde G gradyanları kaybolur → mode collapse.
+            # G'yi D başına n_critic kez eğitmek bu riski azaltır.
+            n_critic = int(getattr(cfg.training, "n_critic", 1))
+
             for batch_idx, (degraded, clean) in enumerate(train_loader):
                 degraded = degraded.to(device, dtype=torch.float32)
                 clean = clean.to(device, dtype=torch.float32)
@@ -357,18 +363,29 @@ def train_gan(cfg: DictConfig) -> Path:
                     scaler=scaler,
                 )
 
-                # G step (re-enables grad through generator)
-                g_components = _train_generator_step(
-                    generator=generator,
-                    discriminator=discriminator,
-                    g_optimizer=g_optimizer,
-                    g_loss_fn=generator_loss,
-                    condition=degraded,
-                    real_target=clean,
-                    use_amp=use_amp,
-                    amp_dtype=amp_dtype,
-                    scaler=scaler,
-                )
+                # G step (re-enables grad through generator).
+                # n_critic > 1 ise: G'yi birden fazla kez eğit, D gradyanlarını kapat.
+                g_components = None
+                for _ in range(max(1, n_critic)):
+                    # D'nin parametreleri G adımı sırasında güncellenmesin
+                    for p in discriminator.parameters():
+                        p.requires_grad_(False)
+                    try:
+                        g_components = _train_generator_step(
+                            generator=generator,
+                            discriminator=discriminator,
+                            g_optimizer=g_optimizer,
+                            g_loss_fn=generator_loss,
+                            condition=degraded,
+                            real_target=clean,
+                            use_amp=use_amp,
+                            amp_dtype=amp_dtype,
+                            scaler=scaler,
+                        )
+                    finally:
+                        # D gradyanlarını bir sonraki D adımı için geri aç
+                        for p in discriminator.parameters():
+                            p.requires_grad_(True)
 
                 # Accumulate metrics
                 running_g_total += g_components["total"]
@@ -388,7 +405,11 @@ def train_gan(cfg: DictConfig) -> Path:
             avg_d_loss = running_d_loss / max(1, batch_count)
 
             # ---- Validation ----
-            # Use only the generator for validation (pixel loss only)
+            # Use only the generator for validation (pixel loss only).
+            # Generator output is in [-1, 1] (Tanh); map to [0, 1] before
+            # PSNR/SSIM so the metrics are comparable to the [0, 1] target.
+            # val_loss is computed on the mapped prediction so it lives in
+            # the same range as the target.
             generator.eval()
             val_criterion = generator_loss._pixel  # type: ignore[attr-defined]
             validation_summary, sample_batch = evaluate_validation_loader(
@@ -396,6 +417,8 @@ def train_gan(cfg: DictConfig) -> Path:
                 val_loader=val_loader,
                 device=device,
                 criterion=val_criterion,
+                prediction_transform=to_unit_range,
+                data_range=1.0,
             )
             validation_summary = ValidationSummary(
                 epoch=epoch + 1,
@@ -456,9 +479,19 @@ def train_gan(cfg: DictConfig) -> Path:
                 checkpoint_path=checkpoint_path,
             )
 
-            # Best model tracking
-            if validation_summary.val_loss < best_val_loss:
-                best_val_loss = validation_summary.val_loss
+            # Best model tracking.
+            # Varsayılan: val_loss (düşük = iyi). İmage-restoration task'larında
+            # PSNR daha güvenilir bir sinyal; "metric=psnr" ile değiştirilebilir.
+            best_metric_name = str(getattr(cfg.training, "best_metric", "val_loss"))
+            if best_metric_name == "psnr":
+                current_metric = validation_summary.psnr
+                is_best = current_metric > best_val_loss  # PSNR yüksek = iyi
+            else:
+                current_metric = validation_summary.val_loss
+                is_best = current_metric < best_val_loss  # loss düşük = iyi
+
+            if is_best:
+                best_val_loss = current_metric
                 torch.save(
                     {
                         "epoch": epoch + 1,
@@ -476,11 +509,35 @@ def train_gan(cfg: DictConfig) -> Path:
                 print(f"Best model updated: {best_checkpoint_path}")
                 mlflow.log_artifact(str(best_checkpoint_path))
                 if cfg.mlflow.get("log_model", True):
+                    # Input example'ı modelin bulunduğu device'a taşı,
+                    # float32'ye çevir (Conv2d bias float32 bekler),
+                    # ve güvenli pt2 formatı ile logla.
+                    import numpy as np
+
+                    example_tensor = degraded[:1].to(generator.device).to(torch.float32)
+                    example_np = (
+                        example_tensor.detach().cpu().numpy().astype(np.float32)
+                    )
+
+                    from mlflow.models import ModelSignature
+                    from mlflow.types import DataType, Schema, TensorSpec
+
+                    input_schema = Schema(
+                        [TensorSpec(np.dtype(np.float32), (-1, 1, 512, 512))]
+                    )
+                    output_schema = Schema(
+                        [TensorSpec(np.dtype(np.float32), (-1, 1, 512, 512))]
+                    )
+                    signature = ModelSignature(
+                        inputs=input_schema, outputs=output_schema
+                    )
+
                     mlflow.pytorch.log_model(
                         generator,
                         name="best_generator",
-                        input_example=degraded[:1].detach().cpu().numpy(),
-                        serialization_format="pickle",
+                        input_example=example_np,
+                        signature=signature,
+                        serialization_format="pt2",
                     )
 
             # Log artifacts
