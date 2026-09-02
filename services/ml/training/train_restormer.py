@@ -140,7 +140,7 @@ def train(cfg: DictConfig) -> Path:
         bucket_name=cfg.data.bucket_name,
         minio_prefix=cfg.data.minio_prefix,
         augment=cfg.data.augment,
-        crop_size=None,  # patch-based eğitim: crop'u train loop'ta yap
+        crop_size=512,  # tam 512×512 yükle, patch-based crop'u train loop'ta yap
         split=cfg.data.get("split", None),
         max_samples=cfg.data.get("max_samples", None),
         num_workers=cfg.data.num_workers,
