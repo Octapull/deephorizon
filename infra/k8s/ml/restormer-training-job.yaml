@@ -1,0 +1,159 @@
+# DeepHorizon Restormer training — K8s Job manifest.
+# Faz 3 Adım 1: Restormer transformer eğitimi (patch-based, full loss suite).
+#
+# MLOps notları (2026-09-02):
+#   - İmaj: localhost:32000/deephorizon-training:2026-08-24 (main'den derlendi,
+#     train_restormer.py + models/restormer + losses hepsi içinde; yeniden derleme yok).
+#   - ENTRYPOINT U-Net trainer'ına sabitli; Restormer için command ile EZİLMELİ:
+#       command: ["python", "-m", "services.ml.training.train_restormer"]
+#   - args Hydra override'ları normal şekilde çalışır.
+#   - /dev/shm volume + nvidia.com/gpu: 1 baseline manifest'ten aynen taşındı.
+#   - GPU'ya yalnızca K8s Job üzerinden erişilmeli (host'ta docker run --gpus YASAK).
+#
+# pix2pix-training-job.yaml'dan farkları:
+#   - command ile ENTRYPOINT eziliyor (train_restormer.py)
+#   - model=restormer (transformer, U-Net veya GAN değil)
+#   - Patch-based training: 128×128 crops (Restormer paper recommendation)
+#   - Cosine LR scheduler (Restormer paper default)
+#   - Lower LR: 1e-4 (transformer-based restoration için)
+#   - 100 epoch (Restormer paper default for image restoration)
+#   - Daha yüksek memory (transformer attention + VGG19 perceptual)
+#
+# Topology:
+#   - PriorityClass: training-priority (inference yokken GPU kullanır)
+#   - Node selector: workload=training (training node'larına yönlendir)
+#   - GPU: nvidia.com/gpu: 1 (L40S)
+#   - activeDeadlineSeconds: 432000 (5 gün)
+#
+# Deploy:
+#   kubectl apply -f infra/k8s/ml/restormer-training-job.yaml
+#
+# İzleme:
+#   kubectl logs -f job/restormer-100ep-20260902 -n deephorizon-ml
+#   kubectl get jobs -n deephorizon-ml
+#   kubectl describe pod <pod-adı> -n deephorizon-ml   # Events bölümüne bak
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restormer-100ep-20260902
+  namespace: deephorizon-ml
+  labels:
+    app: ml-training
+    model: restormer
+    dataset: training-512-v1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 432000  # 5 gün; transformer eğitimi uzun sürebilir
+  ttlSecondsAfterFinished: 604800  # 7 gün sonra temizle
+  template:
+    metadata:
+      labels:
+        app: ml-training
+        model: restormer
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      # NOT: nodeSelector/tolerations/priorityClassName YOK.
+      # Bu cluster tek-node (deephorizon) ve node'da `workload=training`
+      # label'ı ile `nvidia.com/gpu` taint'ı yok. Eğer çok-node'lu bir
+      # cluster'a geçilirse bu alanlar geri eklenmeli.
+      containers:
+        - name: trainer
+          # MLOps ekibinin derlediği imaj (main'in son hâli, 2026-08-24).
+          # ENTRYPOINT U-Net trainer'ına sabitli; aşağıda command ile eziyoruz.
+          image: localhost:32000/deephorizon-training:2026-08-24
+          imagePullPolicy: IfNotPresent
+          # ENTRYPOINT ezme: Restormer eğitimi farklı modül.
+          # command + args birlikte verilince ikisi de kullanılır;
+          # Hydra override'ları args üzerinden normal şekilde çalışır.
+          command:
+            - "python"
+            - "-m"
+            - "services.ml.training.train_restormer"
+          args:
+            # ─── Model: Restormer transformer ───
+            - "model=restormer"
+            - "model.in_channels=1"
+            - "model.out_channels=1"
+            - "model.dim=48"
+            - "model.num_blocks=[4,6,6,8]"
+            - "model.num_heads=[1,2,4,8]"
+            - "model.expansion_factor=2.66"
+            - "model.patch_size=128"
+            - "model.patch_overlap=32"
+            # ─── Training: 100 epoch ───
+            - "training.epochs=100"
+            - "training.batch_size=8"
+            - "training.learning_rate=1.0e-4"
+            - "training.scheduler.name=cosine"
+            # ─── AMP + gradient accumulation ───
+            - "training.amp=true"
+            - "training.amp_dtype=bfloat16"
+            - "training.grad_accum_steps=1"
+            # ─── Best model seçimi: PSNR (image restoration için daha güvenilir) ───
+            - "training.best_metric=psnr"
+            # ─── Early stopping ───
+            - "training.early_stopping.enabled=true"
+            - "training.early_stopping.min_epochs=40"
+            - "training.early_stopping.patience=15"
+            - "training.early_stopping.min_delta=1.0e-5"
+            # ─── Loss: combined (L1 + perceptual + physics) ───
+            - "loss.name=combined"
+            # ─── Data: MinIO'dan heavy split ───
+            - "data.use_minio=true"
+            - "data.bucket_name=datasets"
+            - "data.minio_prefix=training-512/v1"
+            - "data.augment=true"
+            - "data.num_workers=4"
+            - "data.pin_memory=true"
+            # ─── Device ───
+            - "device=cuda"
+            # ─── Paths ───
+            - "paths.output_dir=/app/runs/restormer-100ep-20260902"
+            - "hydra.run.dir=/app/runs/restormer-100ep-20260902/hydra"
+            # ─── MLflow ───
+            - "mlflow.experiment_name=restormer"
+            - "mlflow.run_name=restormer-100ep-20260902"
+          env:
+            - name: MINIO_ENDPOINT
+              value: http://minio.deephorizon-data.svc:9000
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: secret_key
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow.deephorizon-ml.svc:5000
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: /app
+          resources:
+            requests:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: outputs
+              mountPath: /app/runs
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: outputs
+          persistentVolumeClaim:
+            claimName: training-outputs-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi
