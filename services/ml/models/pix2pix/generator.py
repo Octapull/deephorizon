@@ -1,4 +1,107 @@
-"""Pix2Pix generator — U-Net wrapper for conditional image generation.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pix2pix-100ep-20260824
+  namespace: deephorizon-ml
+  labels:
+    app: ml-training
+    model: pix2pix
+    dataset: training-512-v1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 432000
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: ml-training
+        model: pix2pix
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: trainer
+          image: localhost:32000/deephorizon-training:2026-08-24
+          imagePullPolicy: IfNotPresent
+          command:
+            - "python"
+            - "-m"
+            - "services.ml.training.gan_train"
+          args:
+            - "model=pix2pix"
+            - "model.in_channels=1"
+            - "model.out_channels=1"
+            - "model.generator.dropout=0.5"
+            - "model.generator.use_tanh=true"
+            - "model.discriminator.in_channels=2"
+            - "model.discriminator.base_channels=64"
+            - "model.discriminator.max_channels=512"
+            - "model.discriminator.n_layers=3"
+            - "model.discriminator.use_sigmoid=true"
+            - "training.epochs=100"
+            - "training.batch_size=8"
+            - "training.learning_rate=2.0e-4"
+            - "training.scheduler.name=reduce_on_plateau"
+            - "training.amp=true"
+            - "training.amp_dtype=bfloat16"
+            - "training.grad_accum_steps=1"
+            - "training.early_stopping.enabled=true"
+            - "training.early_stopping.min_epochs=40"
+            - "training.early_stopping.patience=15"
+            - "training.early_stopping.min_delta=1.0e-5"
+            - "loss.name=combined"
+            - "data.use_minio=true"
+            - "data.bucket_name=datasets"
+            - "data.minio_prefix=training-512/v1"
+            - "data.augment=true"
+            - "data.num_workers=4"
+            - "data.pin_memory=true"
+            - "device=cuda"
+            - "paths.output_dir=/app/runs/pix2pix-100ep-20260824"
+            - "hydra.run.dir=/app/runs/pix2pix-100ep-20260824/hydra"
+            - "mlflow.experiment_name=pix2pix"
+            - "mlflow.run_name=pix2pix-100ep-20260824"
+          env:
+            - name: MINIO_ENDPOINT
+              value: http://minio.deephorizon-data.svc:9000
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: access_key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-ml
+                  key: secret_key
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow.deephorizon-ml.svc:5000
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: /app
+          resources:
+            requests:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: outputs
+              mountPath: /app/runs
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: outputs
+          persistentVolumeClaim:
+            claimName: training-outputs-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi            kubectl get pod -n deephorizon-ml -w -l model=pix2pix"""Pix2Pix generator — U-Net wrapper for conditional image generation.
 
 The generator is an encoder-decoder with skip connections (U-Net) that
 maps a degraded input image to a clean output image. Dropout is applied

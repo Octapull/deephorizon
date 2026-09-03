@@ -100,11 +100,13 @@ class BlackHoleDataset(Dataset):
             clean = torch.rot90(clean, k=k, dims=[-2, -1])
 
         _, height, width = degraded.shape
-        crop = int(self.crop_size)
-        if height >= crop and width >= crop:
-            top = int(torch.randint(0, height - crop + 1, ()).item())
-            left = int(torch.randint(0, width - crop + 1, ()).item())
-            degraded = degraded[..., top : top + crop, left : left + crop]
-            clean = clean[..., top : top + crop, left : left + crop]
+        # crop_size=None → patch-based training (crop'u train loop'ta yap)
+        if self.crop_size is not None:
+            crop = int(self.crop_size)
+            if height >= crop and width >= crop:
+                top = int(torch.randint(0, height - crop + 1, ()).item())
+                left = int(torch.randint(0, width - crop + 1, ()).item())
+                degraded = degraded[..., top : top + crop, left : left + crop]
+                clean = clean[..., top : top + crop, left : left + crop]
 
         return clean, degraded

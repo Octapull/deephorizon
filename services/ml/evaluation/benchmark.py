@@ -55,7 +55,11 @@ def save_sample_outputs(
     sample_count = min(max_samples, degraded.shape[0])
     for index in range(sample_count):
         triplet = torch.cat(
-            [degraded[index : index + 1], prediction[index : index + 1], clean[index : index + 1]],
+            [
+                degraded[index : index + 1],
+                prediction[index : index + 1],
+                clean[index : index + 1],
+            ],
             dim=0,
         )
         grid = make_grid(triplet, nrow=3, normalize=True, value_range=(0.0, 1.0))
@@ -69,7 +73,25 @@ def evaluate_validation_loader(
     val_loader,
     device: torch.device,
     criterion,
+    prediction_transform: callable | None = None,
+    data_range: float = 1.0,
 ) -> tuple[ValidationSummary, tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None]:
+    """Run validation over ``val_loader`` and aggregate metrics.
+
+    Args:
+        model: Generator / model under evaluation.
+        val_loader: Validation DataLoader yielding ``(degraded, clean)`` pairs.
+        device: Device to run inference on.
+        criterion: Loss function used for ``val_loss`` (operates on raw
+            model output).
+        prediction_transform: Optional callable ``(pred) -> pred`` applied
+            to the model output **before** metric computation. Pix2Pix
+            generators with ``Tanh`` output ``[-1, 1]``; pass a transform
+            that maps to ``[0, 1]`` so PSNR/SSIM are meaningful.
+        data_range: ``data_range`` forwarded to ``compute_metrics``.
+            Use ``2.0`` when comparing ``[-1, 1]`` predictions directly,
+            or keep ``1.0`` after mapping to ``[0, 1]``.
+    """
     model.eval()
 
     running_val_loss = 0.0
@@ -88,9 +110,23 @@ def evaluate_validation_loader(
             clean = clean.to(device, dtype=torch.float32)
             prediction = model(degraded)
 
-            loss = criterion(prediction, clean)
+            # Metrics are computed on the same range as the target.
+            # Pix2Pix Tanh output is [-1, 1]; map to [0, 1] before metrics.
+            metrics_input = (
+                prediction_transform(prediction)
+                if prediction_transform is not None
+                else prediction
+            )
+            # val_loss is also computed on the mapped prediction so it
+            # lives in the same range as the target (and as the
+            # training-time pixel loss).
+            loss = criterion(metrics_input, clean)
             metrics = compute_metrics(
-                prediction, clean, include_lpips=True, include_physics=True
+                metrics_input,
+                clean,
+                data_range=data_range,
+                include_lpips=True,
+                include_physics=True,
             )
 
             running_val_loss += float(loss.item())

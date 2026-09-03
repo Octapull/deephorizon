@@ -35,10 +35,18 @@ COPY requirements/ /app/requirements/
 RUN pip install --no-cache-dir -r requirements/ml.txt \
  && rm -rf /app/requirements
 
+# --- ONNX export bagimliliklari (Faz 5 Görev 41) ---
+# Restormer ve diger modellerin ONNX export'u icin gerekli.
+# ml.txt'ye eklemek yerine burada kuruyoruz — boylece ml.txt sadece egitim
+# bagimliliklarini icerir, export ayri bir concern.
+RUN pip install --no-cache-dir onnx>=1.15.0 onnxruntime>=1.17.0
+
 # --- Dogrulama: eksik bir sey varsa build burada dussun, egitimin 3. saatinde degil ---
 RUN python -c "\
 import torch, torchvision, torchmetrics, mlflow, hydra, omegaconf, boto3, lpips, skimage, cv2, numpy; \
+import onnx, onnxruntime; \
 print('torch', torch.__version__, '| cuda', torch.version.cuda, '| numpy', numpy.__version__); \
+print('onnx', onnx.__version__, '| onnxruntime', onnxruntime.__version__); \
 assert torch.version.cuda, 'CUDA destegi olmayan torch kuruldu'"
 
 # --- Uygulama kodu ---
@@ -56,13 +64,20 @@ USER trainer
 WORKDIR /workspace
 
 # ENTRYPOINT — CMD DEGIL. Kubernetes'te manifest'e yazilan `args` CMD'nin
-# YERINE gecer, ENTRYPOINT'in ise SONUNA eklenir. Egitim komutu sabit ve `args`
-# yalnizca Hydra override'lari tasidigi icin dogru olan ENTRYPOINT:
-#   args: ["training.epochs=50", "training.batch_size=16"]
-# CMD ile yazildiginda pod "exec: training.epochs=50: executable file not
-# found" ile StartError'a duser.
+# YERINE gecer, ENTRYPOINT'in ise SONUNA eklenir.
+#
+# Bu imaj birden fazla egitim scripti destekler:
+#   - services.ml.training.train          (U-Net baseline)
+#   - services.ml.training.train_esrgan   (ESRGAN)
+#   - services.ml.training.train_restormer (Restormer — Faz 5)
+#
+# Hangi script'in calisacagi TRAINING_SCRIPT env variable ile secilir.
+# Kubernetes manifest'inde:
+#   env:
+#     - name: TRAINING_SCRIPT
+#       value: "services.ml.training.train_restormer"
 #
 # Imajda kabuk acmak gerekirse ENTRYPOINT'i atla:
 #   docker run --rm --entrypoint bash <imaj>
 #   kubectl run dbg --image=<imaj> --command -- bash
-ENTRYPOINT ["python", "-m", "services.ml.training.train"]
+ENTRYPOINT ["sh", "-c", "python -m ${TRAINING_SCRIPT:-services.ml.training.train}"]
